@@ -953,3 +953,16 @@ def test_jsmath(app, status, warning):
             'e^{ix} = \\cos x + i\\sin x</div>' in content)
     assert '<div class="math">\nn \\in \\mathbb N</div>' in content
     assert '<div class="math">\na + 1 &lt; b</div>' in content
+
+
+@with_app(buildername='html', testroot='html_extra_path')
+def test_html_extra_path(app, status, warning):
+    app.builder.build_all()
+
+    assert (app.outdir / '.htaccess').exists() is True
+    assert (app.outdir / '.htpasswd').exists() is False
+    assert (app.outdir / 'API.html_t').exists() is True
+    assert (app.outdir / 'css/style.css').exists() is True
+    assert (app.outdir / 'rimg.png').exists() is True
+    assert (app.outdir / '_build/index.html').exists() is False
+    assert (app.outdir / 'background.png').exists() is True

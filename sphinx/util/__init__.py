@@ -182,6 +182,30 @@ def copy_static_entry(source, targetdir, builder, context={},
                               exclude_matchers=exclude_matchers)
 
 
+def copy_extra_entry(source, targetdir, builder, exclude_matchers=()):
+    """Copy a HTML builder extra_path entry from source to targetdir.
+
+    Handles all possible cases of files, directories and subdirectories.
+    """
+    if exclude_matchers:
+        relpath = relative_path(path.join(builder.srcdir, 'dummy'), source)
+        for matcher in exclude_matchers:
+            if matcher(relpath):
+                return
+    if path.isfile(source):
+        target = path.join(targetdir, path.basename(source))
+        copyfile(source, target)
+    elif path.isdir(source):
+        if not path.isdir(targetdir):
+            os.mkdir(targetdir)
+        for entry in os.listdir(source):
+            newtarget = targetdir
+            if path.isdir(path.join(source, entry)):
+                newtarget = path.join(targetdir, entry)
+            copy_extra_entry(path.join(source, entry), newtarget,
+                             builder, exclude_matchers=exclude_matchers)
+
+
 _DEBUG_HEADER = '''\
 # Sphinx version: %s
 # Python version: %s (%s)
