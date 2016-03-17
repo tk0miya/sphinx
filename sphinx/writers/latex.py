@@ -77,6 +77,8 @@ FOOTER = r'''
 '''
 
 URI_SCHEMES = ('mailto:', 'http:', 'https:', 'ftp:')
+SECTIONING_UNITS = ["part", "chapter", "section", "subsection",
+                    "subsubsection", "paragraph", "subparagraph"]
 
 
 class collected_footnote(nodes.footnote):
@@ -261,12 +263,7 @@ class Table(object):
         self.longtable = False
 
 
-class LaTeXTranslator(nodes.NodeVisitor):
-    sectionnames = ["part", "chapter", "section", "subsection",
-                    "subsubsection", "paragraph", "subparagraph"]
-
-    ignore_missing_images = False
-
+class PreambleGenerator(object):
     default_elements = {
         'papersize':       'letterpaper',
         'pointsize':       '10pt',
@@ -295,6 +292,224 @@ class LaTeXTranslator(nodes.NodeVisitor):
         'logo':            '',
         'releasename':     'Release',
         'makeindex':       '\\makeindex',
+        'tocdepth':        '',
+        'pageautorefname': '',
+    }
+
+    # sphinx specific document classes
+    wrapperclasses = {
+        'howto':  'sphinxhowto',
+        'manual': 'sphinxmanual',
+    }
+
+    def __init__(self, document, builder):
+        self.document = document
+        self.builder = builder
+        self.config = builder.config
+        self.babel = self.init_babel()
+        self.top_sectionlevel = self.get_top_sectionlevel()
+
+        # setup elements
+        self.elements = self.default_elements.copy()
+        self.setup_document_settings()  # docclass, paper and so on
+        self.setup_docinfo()  # title, date and so on
+
+        # allow the user to override them all
+        self.elements['preamble'] = self.config.latex_preamble
+        self.elements.update(self.config.latex_elements)
+
+        # set up i18n messages (after merging user settings)
+        self.setup_i18n_messages()
+
+        # import packages extensions requires
+        self.elements['usepackages'] += self.get_usepackages()
+
+    def encode(self, text):
+        return text_type(text).translate(tex_escape_map)
+
+    def init_babel(self):
+        babel = ExtBabel(self.config.language)
+        if self.config.language:
+            if not babel.is_supported_language():
+                self.builder.warn('no Babel option known for language %r' %
+                                  self.config.language)
+
+        return babel
+
+    def get_top_sectionlevel(self):
+        if self.config.latex_toplevel_sectioning:
+            return SECTIONING_UNITS.index(self.config.latex_toplevel_sectioning)
+        else:
+            if self.document.settings.docclass == 'howto':
+                return 2
+            else:
+                if self.config.latex_use_parts:
+                    return 0
+                else:
+                    return 1
+
+    def setup_document_settings(self):
+        # setup docclass
+        docclass = self.document.settings.docclass
+
+        self.elements['wrapperclass'] = self.wrapperclasses.get(docclass, docclass)
+        if docclass == 'howto':
+            self.elements['docclass'] = self.config.latex_docclass.get('howto', 'article')
+        else:
+            # Otherwise, the docclass is regarded as 'manual'
+            self.elements['docclass'] = self.config.latex_docclass.get('manual', 'report')
+
+        # setup tocdepth
+        if self.document.get('tocdepth'):
+            # redece tocdepth if `part` or `chapter` is used for top_sectionlevel
+            #   tocdepth = -1: show only parts
+            #   tocdepth =  0: show parts and chapters
+            #   tocdepth =  1: show parts, chapters and sections
+            #   tocdepth =  2: show parts, chapters, sections and subsections
+            #   ...
+            tocdepth = self.document['tocdepth'] + self.top_sectionlevel - 2
+            self.elements['tocdepth'] = '\\setcounter{tocdepth}{%d}' % tocdepth
+
+        # settings for languages
+        if self.config.language == 'ja':  # pTeX (Japanese TeX) for support
+            # use dvipdfmx for class option
+            self.elements['classoptions'] = ',dvipdfmx'
+            # disable babel which has not publishing quality in Japanese
+            self.elements['babel'] = ''
+            # disable fncychap in Japanese documents
+            self.elements['fncychap'] = ''
+        elif self.config.language:
+            self.elements['classoptions'] = ',' + self.babel.get_language()
+            self.elements['fncychap'] = '\\usepackage[Sonny]{fncychap}'
+
+            # Times fonts don't work with Cyrillic languages
+            if self.babel.uses_cyrillic():
+                self.elements['fontpkg'] = ''
+        else:
+            self.elements['classoptions'] = ',' + self.babel.get_language()
+
+        # setup classoptions
+        if self.elements['extraclassoptions']:
+            self.elements['classoptions'] += ',' + self.elements['extraclassoptions']
+
+        # other settings
+        if self.config.latex_paper_size:
+            self.elements['papersize'] = self.config.latex_paper_size + 'paper'
+        self.elements['pointsize'] = self.builder.config.latex_font_size
+
+    def setup_docinfo(self):
+        self.elements.update({
+            # if empty, the title is set to the first section title
+            'title':        self.document.settings.title,
+            'release':      self.builder.config.release,
+            'author':       self.document.settings.author,
+        })
+        if self.builder.config.today:
+            self.elements['date'] = self.config.today
+        else:
+            self.elements['date'] = format_date(self.config.today_fmt or _('MMMM dd, YYYY'),
+                                                language=self.config.language)
+        if self.config.latex_logo:
+            self.elements['logo'] = ('\\includegraphics{%s}\\par' %
+                                     path.basename(self.config.latex_logo))
+
+    def setup_i18n_messages(self):
+        self.elements['releasename'] = _('Release')
+        self.elements['indexname'] = _('Index')
+        if getattr(self.document.settings, 'contentsname', None):
+            self.elements['contentsname'] = \
+                self.babel_renewcommand('\\contentsname', self.document.settings.contentsname)
+        self.elements['pageautorefname'] = self.babel_defmacro('\\pageautorefname',
+                                                               self.encode(_('page')))
+        self.elements['numfig_format'] = self.generate_numfig_format(self.builder)
+
+    def get_tocdepth(self):
+        if self.document.get('tocdepth'):
+            # redece tocdepth if `part` or `chapter` is used for top_sectionlevel
+            #   tocdepth = -1: show only parts
+            #   tocdepth =  0: show parts and chapters
+            #   tocdepth =  1: show parts, chapters and sections
+            #   tocdepth =  2: show parts, chapters, sections and subsections
+            #   ...
+            return ('\\setcounter{tocdepth}{%d}' %
+                    (self.document['tocdepth'] + self.top_sectionlevel - 2))
+
+    def get_usepackages(self):
+        def declare_package(packagename, options=None):
+            if options:
+                return '\\usepackage[%s]{%s}' % (options, packagename)
+            else:
+                return '\\usepackage{%s}' % (packagename,)
+
+        packages = getattr(self.builder, 'usepackages', [])
+        return "\n".join(declare_package(*p) for p in packages)
+
+    def babel_renewcommand(self, command, definition):
+        if self.elements['babel']:
+            prefix = '\\addto\\captions%s{' % self.babel.get_language()
+            suffix = '}'
+        else:  # babel is disabled (mainly for Japanese environment)
+            prefix = ''
+            suffix = ''
+
+        return ('%s\\renewcommand{%s}{%s}%s\n' % (prefix, command, definition, suffix))
+
+    def babel_defmacro(self, name, definition):
+        if self.elements['babel']:
+            prefix = '\\addto\\extras%s{' % self.babel.get_language()
+            suffix = '}'
+        else:  # babel is disabled (mainly for Japanese environment)
+            prefix = ''
+            suffix = ''
+
+        return ('%s\\def%s{%s}%s\n' % (prefix, name, definition, suffix))
+
+    def generate_numfig_format(self, builder):
+        ret = []
+        figure = self.builder.config.numfig_format['figure'].split('%s', 1)
+        if len(figure) == 1:
+            ret.append('\\def\\fnum@figure{%s}\n' % self.encode(text_type(figure[0])))
+        else:
+            definition = self.encode(text_type(figure[0]))
+            ret.append(self.babel_renewcommand('\\figurename', definition))
+            if figure[1]:
+                ret.append('\\makeatletter\n')
+                ret.append('\\def\\fnum@figure{\\figurename\\thefigure%s}\n' %
+                           self.encode(text_type(figure[1])))
+                ret.append('\\makeatother\n')
+
+        table = self.builder.config.numfig_format['table'].split('%s', 1)
+        if len(table) == 1:
+            ret.append('\\def\\fnum@table{%s}\n' %
+                       self.encode(text_type(table[0])))
+        else:
+            definition = self.encode(text_type(table[0]))
+            ret.append(self.babel_renewcommand('\\tablename', definition))
+            if table[1]:
+                ret.append('\\makeatletter\n')
+                ret.append('\\def\\fnum@table{\\tablename\\thetable%s}\n' %
+                           self.encode(text_type(table[1])))
+                ret.append('\\makeatother\n')
+
+        codeblock = self.builder.config.numfig_format['code-block'].split('%s', 1)
+        if len(codeblock) == 1:
+            pass  # FIXME
+        else:
+            ret.append('\\SetupFloatingEnvironment{literal-block}{name=%s}\n' %
+                       self.encode(text_type(codeblock[0])))
+            if table[1]:
+                pass  # FIXME
+
+        return ''.join(ret)
+
+    def generate(self):
+        return HEADER % self.elements
+
+
+class LaTeXTranslator(nodes.NodeVisitor):
+    ignore_missing_images = False
+
+    default_elements = {
         'shorthandoff':    '',
         'maketitle':       '\\maketitle',
         'tableofcontents': '\\tableofcontents',
@@ -302,17 +517,14 @@ class LaTeXTranslator(nodes.NodeVisitor):
         'printindex':      '\\printindex',
         'transition':      '\n\n\\bigskip\\hrule{}\\bigskip\n\n',
         'figure_align':    'htbp',
-        'tocdepth':        '',
-        'pageautorefname': '',
     }
-
-    # sphinx specific document classes
-    docclasses = ('howto', 'manual')
 
     def __init__(self, document, builder):
         nodes.NodeVisitor.__init__(self, document)
         self.builder = builder
         self.body = []
+
+        self.preamble = PreambleGenerator(document, builder)
 
         # flags
         self.in_title = 0
@@ -330,102 +542,11 @@ class LaTeXTranslator(nodes.NodeVisitor):
         self.first_param = 0
         self.remember_multirow = {}
         self.remember_multirowcol = {}
-
-        # determine top section level
-        if builder.config.latex_toplevel_sectioning:
-            self.top_sectionlevel = \
-                self.sectionnames.index(builder.config.latex_toplevel_sectioning)
-        else:
-            if document.settings.docclass == 'howto':
-                self.top_sectionlevel = 2
-            else:
-                if builder.config.latex_use_parts:
-                    self.top_sectionlevel = 0
-                else:
-                    self.top_sectionlevel = 1
-
-        # sort out some elements
-        papersize = builder.config.latex_paper_size + 'paper'
-        if papersize == 'paper':  # e.g. command line "-D latex_paper_size="
-            papersize = 'letterpaper'
+        self.top_sectionlevel = self.preamble.top_sectionlevel
 
         self.elements = self.default_elements.copy()
-        self.elements.update({
-            'wrapperclass': self.format_docclass(document.settings.docclass),
-            'papersize':    papersize,
-            'pointsize':    builder.config.latex_font_size,
-            # if empty, the title is set to the first section title
-            'title':        document.settings.title,
-            'release':      builder.config.release,
-            'author':       document.settings.author,
-            'releasename':  _('Release'),
-            'preamble':     builder.config.latex_preamble,
-            'indexname':    _('Index'),
-        })
-        if document.settings.docclass == 'howto':
-            docclass = builder.config.latex_docclass.get('howto', 'article')
-        else:
-            docclass = builder.config.latex_docclass.get('manual', 'report')
-        self.elements['docclass'] = docclass
-        if builder.config.today:
-            self.elements['date'] = builder.config.today
-        else:
-            self.elements['date'] = format_date(builder.config.today_fmt or
-                                                _('MMMM dd, YYYY'),
-                                                language=builder.config.language)
-        if builder.config.latex_logo:
-            self.elements['logo'] = '\\includegraphics{%s}\\par' % \
-                                    path.basename(builder.config.latex_logo)
-        # setup babel
-        self.babel = ExtBabel(builder.config.language)
-        self.elements['classoptions'] += ',' + self.babel.get_language()
-        if builder.config.language:
-            if not self.babel.is_supported_language():
-                self.builder.warn('no Babel option known for language %r' %
-                                  builder.config.language)
-            self.elements['shorthandoff'] = self.babel.get_shorthandoff()
-            self.elements['fncychap'] = '\\usepackage[Sonny]{fncychap}'
-
-            # Times fonts don't work with Cyrillic languages
-            if self.babel.uses_cyrillic():
-                self.elements['fontpkg'] = ''
-
-            # pTeX (Japanese TeX) for support
-            if builder.config.language == 'ja':
-                # use dvipdfmx as default class option in Japanese
-                self.elements['classoptions'] = ',dvipdfmx'
-                # disable babel which has not publishing quality in Japanese
-                self.elements['babel'] = ''
-                # disable fncychap in Japanese documents
-                self.elements['fncychap'] = ''
-        if getattr(builder, 'usepackages', None):
-            def declare_package(packagename, options=None):
-                if options:
-                    return '\\usepackage[%s]{%s}' % (options, packagename)
-                else:
-                    return '\\usepackage{%s}' % (packagename,)
-            usepackages = (declare_package(*p) for p in builder.usepackages)
-            self.elements['usepackages'] += "\n".join(usepackages)
         # allow the user to override them all
         self.elements.update(builder.config.latex_elements)
-        if self.elements['extraclassoptions']:
-            self.elements['classoptions'] += ',' + \
-                                             self.elements['extraclassoptions']
-        if document.get('tocdepth'):
-            # redece tocdepth if `part` or `chapter` is used for top_sectionlevel
-            #   tocdepth = -1: show only parts
-            #   tocdepth =  0: show parts and chapters
-            #   tocdepth =  1: show parts, chapters and sections
-            #   tocdepth =  2: show parts, chapters, sections and subsections
-            #   ...
-            self.elements['tocdepth'] = ('\\setcounter{tocdepth}{%d}' %
-                                         (document['tocdepth'] + self.top_sectionlevel - 2))
-        if getattr(document.settings, 'contentsname', None):
-            self.elements['contentsname'] = \
-                self.babel_renewcommand('\\contentsname', document.settings.contentsname)
-        self.elements['pageautorefname'] = \
-            self.babel_defmacro('\\pageautorefname', self.encode(_('page')))
-        self.elements['numfig_format'] = self.generate_numfig_format(builder)
 
         self.highlighter = highlighting.PygmentsBridge(
             'latex',
@@ -479,15 +600,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
                 footnode.walkabout(self)
             self.pending_footnotes = []
 
-    def format_docclass(self, docclass):
-        """ prepends prefix to sphinx document classes
-        """
-        if docclass in self.docclasses:
-            docclass = 'sphinx' + docclass
-        return docclass
-
     def astext(self):
-        return (HEADER % self.elements +
+        return (self.preamble.generate() +
                 self.highlighter.get_stylesheet() +
                 u''.join(self.body) +
                 '\n' + self.elements['footer'] + '\n' +
@@ -513,65 +627,6 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def hyperrefescape(self, ref):
         return self.idescape(ref).replace('-', '\\string-')
-
-    def babel_renewcommand(self, command, definition):
-        if self.elements['babel']:
-            prefix = '\\addto\\captions%s{' % self.babel.get_language()
-            suffix = '}'
-        else:  # babel is disabled (mainly for Japanese environment)
-            prefix = ''
-            suffix = ''
-
-        return ('%s\\renewcommand{%s}{%s}%s\n' % (prefix, command, definition, suffix))
-
-    def babel_defmacro(self, name, definition):
-        if self.elements['babel']:
-            prefix = '\\addto\\extras%s{' % self.babel.get_language()
-            suffix = '}'
-        else:  # babel is disabled (mainly for Japanese environment)
-            prefix = ''
-            suffix = ''
-
-        return ('%s\\def%s{%s}%s\n' % (prefix, name, definition, suffix))
-
-    def generate_numfig_format(self, builder):
-        ret = []
-        figure = self.builder.config.numfig_format['figure'].split('%s', 1)
-        if len(figure) == 1:
-            ret.append('\\def\\fnum@figure{%s}\n' %
-                       text_type(figure[0]).translate(tex_escape_map))
-        else:
-            definition = text_type(figure[0]).translate(tex_escape_map)
-            ret.append(self.babel_renewcommand('\\figurename', definition))
-            if figure[1]:
-                ret.append('\\makeatletter\n')
-                ret.append('\\def\\fnum@figure{\\figurename\\thefigure%s}\n' %
-                           text_type(figure[1]).translate(tex_escape_map))
-                ret.append('\\makeatother\n')
-
-        table = self.builder.config.numfig_format['table'].split('%s', 1)
-        if len(table) == 1:
-            ret.append('\\def\\fnum@table{%s}\n' %
-                       text_type(table[0]).translate(tex_escape_map))
-        else:
-            definition = text_type(table[0]).translate(tex_escape_map)
-            ret.append(self.babel_renewcommand('\\tablename', definition))
-            if table[1]:
-                ret.append('\\makeatletter\n')
-                ret.append('\\def\\fnum@table{\\tablename\\thetable%s}\n' %
-                           text_type(table[1]).translate(tex_escape_map))
-                ret.append('\\makeatother\n')
-
-        codeblock = self.builder.config.numfig_format['code-block'].split('%s', 1)
-        if len(codeblock) == 1:
-            pass  # FIXME
-        else:
-            ret.append('\\SetupFloatingEnvironment{literal-block}{name=%s}\n' %
-                       text_type(codeblock[0]).translate(tex_escape_map))
-            if table[1]:
-                pass  # FIXME
-
-        return ''.join(ret)
 
     def generate_indices(self):
         def generate(content, collapsed):
@@ -766,10 +821,10 @@ class LaTeXTranslator(nodes.NodeVisitor):
                 short = '[%s]' % ' '.join(clean_astext(node).split()).translate(tex_escape_map)
 
             try:
-                self.body.append(r'\%s%s{' % (self.sectionnames[self.sectionlevel], short))
+                self.body.append(r'\%s%s{' % (SECTIONING_UNITS[self.sectionlevel], short))
             except IndexError:
                 # just use "subparagraph", it's not numbered anyway
-                self.body.append(r'\%s%s{' % (self.sectionnames[-1], short))
+                self.body.append(r'\%s%s{' % (SECTIONING_UNITS[-1], short))
             self.context.append('}\n')
 
             self.restrict_footnote(node)
