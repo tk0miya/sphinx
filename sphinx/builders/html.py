@@ -932,17 +932,18 @@ class SingleFileHTMLBuilder(StandaloneHTMLBuilder):
 
     def fix_refuris(self, tree):
         # fix refuris with double anchor
-        fname = self.config.master_doc + self.out_suffix
         for refnode in tree.traverse(nodes.reference):
             if 'refuri' not in refnode:
                 continue
             refuri = refnode['refuri']
-            hashindex = refuri.find('#')
-            if hashindex < 0:
+            hashindex1 = refuri.find('#')
+            if hashindex1 < 0:
                 continue
-            hashindex = refuri.find('#', hashindex+1)
-            if hashindex >= 0:
-                refnode['refuri'] = fname + refuri[hashindex:]
+            hashindex2 = refuri.find('#', hashindex1 + 1)
+            if hashindex2 >= 0:
+                refnode['refuri'] = refuri[hashindex2:]
+            else:
+                refnode['refuri'] = refuri[hashindex1:]
 
     def _get_local_toctree(self, docname, collapse=True, **kwds):
         if 'includehidden' not in kwds:
