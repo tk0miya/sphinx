@@ -217,10 +217,6 @@ div.body td {
     text-align: left;
 }
 
-.field-list ul {
-    padding-left: 1em;
-}
-
 .first {
     margin-top: 0 !important;
 }
@@ -427,7 +423,7 @@ dl.glossary dt {
     font-size: 1.1em;
 }
 
-.field-list ul {
+.field-list ul.field-body-entries {
     margin: 0;
     padding-left: 1em;
 }

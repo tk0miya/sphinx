@@ -105,7 +105,7 @@ class GroupedField(Field):
 
     def make_field(self, types, domain, items):
         fieldname = nodes.field_name('', self.label)
-        listnode = self.list_type()
+        listnode = self.list_type(classes=['field-body-entries'])
         for fieldarg, content in items:
             par = nodes.paragraph()
             par += self.make_xref(self.rolename, domain, fieldarg,
@@ -174,7 +174,7 @@ class TypedField(GroupedField):
             fieldarg, content = items[0]
             bodynode = handle_item(fieldarg, content)
         else:
-            bodynode = self.list_type()
+            bodynode = self.list_type(classes=['field-body-entries'])
             for fieldarg, content in items:
                 bodynode += nodes.list_item('', handle_item(fieldarg, content))
         fieldbody = nodes.field_body('', bodynode)
