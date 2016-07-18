@@ -15,19 +15,6 @@ from docutils import nodes
 from sphinx import addnodes
 
 
-def _is_single_paragraph(node):
-    """True if the node only contains one paragraph (and system messages)."""
-    if len(node) == 0:
-        return False
-    elif len(node) > 1:
-        for subnode in node[1:]:
-            if not isinstance(subnode, nodes.system_message):
-                return False
-    if isinstance(node[0], nodes.paragraph):
-        return True
-    return False
-
-
 class Field(object):
     """A doc field that is never grouped.  It can have an argument or not, the
     argument can be linked using a specified *rolename*.  Field should be used
@@ -78,7 +65,8 @@ class Field(object):
                  isinstance(content[0][0], nodes.Text))):
             content = [self.make_xref(self.bodyrolename, domain,
                                       content[0].astext(), contnode=content[0])]
-        fieldbody = nodes.field_body('', nodes.paragraph('', '', *content))
+        desc = nodes.container('', *content, classes=['field-body-content'])
+        fieldbody = nodes.field_body('', desc)
         return nodes.field('', fieldname, fieldbody)
 
 
@@ -96,7 +84,7 @@ class GroupedField(Field):
        :raises ErrorClass: description when it is raised
     """
     is_grouped = True
-    list_type = nodes.bullet_list
+    list_type = nodes.definition_list
 
     def __init__(self, name, names=(), label=None, rolename=None,
                  can_collapse=False):
@@ -107,12 +95,12 @@ class GroupedField(Field):
         fieldname = nodes.field_name('', self.label)
         listnode = self.list_type(classes=['field-body-entries'])
         for fieldarg, content in items:
-            par = nodes.paragraph()
-            par += self.make_xref(self.rolename, domain, fieldarg,
-                                  addnodes.literal_strong)
-            par += nodes.Text(' -- ')
-            par += content
-            listnode += nodes.list_item('', par)
+            term = nodes.term()
+            term += self.make_xref(self.rolename, domain, fieldarg,
+                                   addnodes.literal_strong)
+            term += nodes.Text(' -- ')
+            desc = nodes.definition('', *content)
+            listnode += nodes.definition_list_item('', term, desc)
         if len(items) == 1 and self.can_collapse:
             fieldbody = nodes.field_body('', listnode[0][0])
             return nodes.field('', fieldname, fieldbody)
@@ -149,35 +137,35 @@ class TypedField(GroupedField):
 
     def make_field(self, types, domain, items):
         def handle_item(fieldarg, content):
-            par = nodes.paragraph()
-            par += self.make_xref(self.rolename, domain, fieldarg,
-                                  addnodes.literal_strong)
+            term = nodes.term()
+            term += self.make_xref(self.rolename, domain, fieldarg,
+                                   addnodes.literal_strong)
             if fieldarg in types:
-                par += nodes.Text(' (')
+                term += nodes.Text(' (')
                 # NOTE: using .pop() here to prevent a single type node to be
                 # inserted twice into the doctree, which leads to
                 # inconsistencies later when references are resolved
                 fieldtype = types.pop(fieldarg)
                 if len(fieldtype) == 1 and isinstance(fieldtype[0], nodes.Text):
                     typename = u''.join(n.astext() for n in fieldtype)
-                    par += self.make_xref(self.typerolename, domain, typename,
-                                          addnodes.literal_emphasis)
+                    term += self.make_xref(self.typerolename, domain, typename,
+                                           addnodes.literal_emphasis)
                 else:
-                    par += fieldtype
-                par += nodes.Text(')')
-            par += nodes.Text(' -- ')
-            par += content
-            return par
+                    term += fieldtype
+                term += nodes.Text(')')
+            term += nodes.Text(' -- ')
+            desc = nodes.definition('', *content)
+            return nodes.definition_list_item('', term, desc)
 
         fieldname = nodes.field_name('', self.label)
         if len(items) == 1 and self.can_collapse:
             fieldarg, content = items[0]
             bodynode = handle_item(fieldarg, content)
         else:
-            bodynode = self.list_type(classes=['field-body-entries'])
+            bodynode = [self.list_type(classes=['field-body-entries'])]
             for fieldarg, content in items:
-                bodynode += nodes.list_item('', handle_item(fieldarg, content))
-        fieldbody = nodes.field_body('', bodynode)
+                bodynode[0] += nodes.definition_list_item('', handle_item(fieldarg, content))
+        fieldbody = nodes.field_body('', *bodynode)
         return nodes.field('', fieldname, fieldbody)
 
 
@@ -242,12 +230,7 @@ class DocFieldTransformer(object):
                 continue
 
             typename = typedesc.name
-
-            # collect the content, trying not to keep unnecessary paragraphs
-            if _is_single_paragraph(fieldbody):
-                content = fieldbody.children[0].children
-            else:
-                content = fieldbody.children
+            content = fieldbody.children
 
             # if the field specifies a type, put it in the types collection
             if is_typefield:

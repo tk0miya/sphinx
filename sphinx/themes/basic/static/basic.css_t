@@ -432,6 +432,23 @@ dl.glossary dt {
     margin: 0;
 }
 
+.field-list dl.field-body-entries dt {
+    display: list-item;
+    margin-left: 1.2em;
+    max-width: 50%;
+    float: left;
+    clear: left;
+}
+
+.field-list dl.field-body-entries dd {
+    float: left;
+    margin: 0 0 0 0.5em;
+}
+
+.field-list dl.field-body-entries dd .last {
+    margin-bottom: 0;
+}
+
 .optional {
     font-size: 1.3em;
 }
