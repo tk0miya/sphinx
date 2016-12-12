@@ -62,19 +62,6 @@ if False:
 
 builtin_extensions = (
     'sphinx.addnodes',
-    'sphinx.builders.changes',
-    'sphinx.builders.epub3',
-    'sphinx.builders.dirhtml',
-    'sphinx.builders.dummy',
-    'sphinx.builders.gettext',
-    'sphinx.builders.html',
-    'sphinx.builders.latex',
-    'sphinx.builders.linkcheck',
-    'sphinx.builders.manpage',
-    'sphinx.builders.singlehtml',
-    'sphinx.builders.texinfo',
-    'sphinx.builders.text',
-    'sphinx.builders.xml',
     'sphinx.config',
     'sphinx.domains.c',
     'sphinx.domains.changeset',
@@ -119,6 +106,8 @@ builtin_extensions = (
     # Strictly, alabaster theme is not a builtin extension,
     # but it is loaded automatically to use it as default theme.
     'alabaster',
+    # the settings for gettext builder are used commonly even if not build target
+    'sphinx.builders.gettext',
 )
 
 ENV_PICKLE_FILENAME = 'environment.pickle'
