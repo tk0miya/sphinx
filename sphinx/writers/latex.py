@@ -1199,7 +1199,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
         elif self.table.colspec:
             self.body.append('\n\\noindent\\begin{tabulary}{\\linewidth}')
             endmacro = '\\end{tabulary}\n\n'
-        elif self.table.has_problematic or self.table.colwidths:
+        elif self.table.has_problematic or \
+             (self.table.colwidths and 'colwidths-given' in self.table.classes):
             self.body.append('\n\\noindent\\begin{tabular}')
             endmacro = '\\end{tabular}\n\n'
         else:
