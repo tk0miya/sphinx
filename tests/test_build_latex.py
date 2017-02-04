@@ -838,7 +838,7 @@ def test_latex_table(app, status, warning):
 
     # table having :widths: option
     table = tables['table having :widths: option']
-    assert ('\\noindent\\begin{tabular}{|\X{30}{100}|\X{70}{100}|}' in table)
+    assert ('\\noindent\\begin{tabular}{|\\X{30}{100}|\\X{70}{100}|}' in table)
     assert ('\\hline\n'
             '\\sphinxstylethead{\\relax \nheader1\n\\unskip}\\relax &'
             '\\sphinxstylethead{\\relax \nheader2\n\\unskip}\\relax' in table)
@@ -871,7 +871,7 @@ def test_latex_table(app, status, warning):
 
     # table having both :widths: and problematic cell
     table = tables['table having both :widths: and problematic cell']
-    assert ('\\noindent\\begin{tabular}{|\X{30}{100}|\X{70}{100}|}' in table)
+    assert ('\\noindent\\begin{tabular}{|\\X{30}{100}|\\X{70}{100}|}' in table)
 
     # longtable
     table = tables['longtable']
@@ -896,7 +896,7 @@ def test_latex_table(app, status, warning):
 
     # longtable having :widths: option
     table = tables['longtable having :widths: option']
-    assert '\\begin{longtable}{|\X{30}{100}|\X{70}{100}|}' in table
+    assert '\\begin{longtable}{|\\X{30}{100}|\\X{70}{100}|}' in table
 
     # longtable having caption
     table = tables['longtable having caption']
@@ -913,4 +913,4 @@ def test_latex_table(app, status, warning):
 
     # longtable having both :widths: and problematic cell
     table = tables['longtable having both :widths: and problematic cell']
-    assert ('\\begin{longtable}{|\X{30}{100}|\X{70}{100}|}' in table)
+    assert ('\\begin{longtable}{|\\X{30}{100}|\\X{70}{100}|}' in table)
