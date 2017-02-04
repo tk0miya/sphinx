@@ -814,3 +814,38 @@ def test_maxlistdepth_at_ten(app, status, warning):
     print(status.getvalue())
     print(warning.getvalue())
     compile_latex_document(app)
+
+
+@pytest.mark.sphinx('latex', testroot='latex-table')
+def test_latex_table(app, status, warning):
+    app.builder.build_all()
+    result = (app.outdir / 'test.tex').text(encoding='utf8')
+    tables = {}
+    for chap in re.split(r'\\chapter(?={.*})', result)[1:]:
+        sectname, content = chap.split('}', 1)
+        tables[sectname[1:]] = content.strip()
+
+    # simple_table
+    simple_table = tables['simple table']
+    assert ('\\noindent\\begin{tabulary}{\\linewidth}{|L|L|}' in simple_table)
+    assert ('\\hline\n'
+            '\\sphinxstylethead{\\relax \nheader1\n\\unskip}\\relax &'
+            '\\sphinxstylethead{\\relax \nheader2\n\\unskip}\\relax' in simple_table)
+    assert ('\\hline\ncell1-1\n&\ncell1-2\n\\\\' in simple_table)
+    assert ('\\hline\ncell2-1\n&\ncell2-2\n\\\\' in simple_table)
+    assert ('\\hline\ncell3-1\n&\ncell3-2\n\\\\' in simple_table)
+    assert ('\\hline\\end{tabulary}' in simple_table)
+
+    # table having :widths: option
+    widths_table = tables['table having :widths: option']
+    assert ('\\noindent\\begin{tabulary}{\\linewidth}{'
+            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*30/100-2\\tabcolsep-\\arrayrulewidth\\relax}'
+            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*70/100-2\\tabcolsep-\\arrayrulewidth\\relax}|}'
+            in widths_table)
+    assert ('\\hline\n'
+            '\\sphinxstylethead{\\relax \nheader1\n\\unskip}\\relax &'
+            '\\sphinxstylethead{\\relax \nheader2\n\\unskip}\\relax' in widths_table)
+    assert ('\\hline\ncell1-1\n&\ncell1-2\n\\\\' in widths_table)
+    assert ('\\hline\ncell2-1\n&\ncell2-2\n\\\\' in widths_table)
+    assert ('\\hline\ncell3-1\n&\ncell3-2\n\\\\' in widths_table)
+    assert ('\\hline\\end{tabulary}' in widths_table)
