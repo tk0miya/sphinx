@@ -838,17 +838,14 @@ def test_latex_table(app, status, warning):
 
     # table having :widths: option
     table = tables['table having :widths: option']
-    assert ('\\noindent\\begin{tabulary}{\\linewidth}{'
-            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*30/100-2\\tabcolsep-\\arrayrulewidth\\relax}'
-            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*70/100-2\\tabcolsep-\\arrayrulewidth\\relax}|}'
-            in table)
+    assert ('\\noindent\\begin{tabular}{|\\X{30}{100}|\\X{70}{100}|}' in table)
     assert ('\\hline\n'
             '\\sphinxstylethead{\\relax \nheader1\n\\unskip}\\relax &'
             '\\sphinxstylethead{\\relax \nheader2\n\\unskip}\\relax' in table)
     assert ('\\hline\ncell1-1\n&\ncell1-2\n\\\\' in table)
     assert ('\\hline\ncell2-1\n&\ncell2-2\n\\\\' in table)
     assert ('\\hline\ncell3-1\n&\ncell3-2\n\\\\' in table)
-    assert ('\\hline\\end{tabulary}' in table)
+    assert ('\\hline\\end{tabular}' in table)
 
     # table having caption
     table = tables['table having caption']
@@ -866,22 +863,15 @@ def test_latex_table(app, status, warning):
 
     # table having verbatim
     table = tables['table having verbatim']
-    assert ('\\noindent\\begin{tabular}{|*{2}{'
-            'p{\\dimexpr(\\linewidth-\\arrayrulewidth)/2-2\\tabcolsep-\\arrayrulewidth\\relax}|}}\n'
-            '\\hline' in table)
+    assert ('\\noindent\\begin{tabular}{|*{2}{\\X{1}{2}|}}\n\\hline' in table)
 
     # table having problematic cell
     table = tables['table having problematic cell']
-    assert ('\\noindent\\begin{tabular}{|*{2}{'
-            'p{\\dimexpr(\\linewidth-\\arrayrulewidth)/2-2\\tabcolsep-\\arrayrulewidth\\relax}|}}\n'
-            '\\hline' in table)
+    assert ('\\noindent\\begin{tabular}{|*{2}{\\X{1}{2}|}}\n\\hline' in table)
 
     # table having both :widths: and problematic cell
     table = tables['table having both :widths: and problematic cell']
-    assert ('\\noindent\\begin{tabular}{'
-            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*30/100-2\\tabcolsep-\\arrayrulewidth\\relax}'
-            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*70/100-2\\tabcolsep-\\arrayrulewidth\\relax}|}'
-            in table)
+    assert ('\\noindent\\begin{tabular}{|\\X{30}{100}|\\X{70}{100}|}' in table)
 
     # longtable
     table = tables['longtable']
@@ -906,10 +896,7 @@ def test_latex_table(app, status, warning):
 
     # longtable having :widths: option
     table = tables['longtable having :widths: option']
-    assert ('\\begin{longtable}{'
-            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*30/100-2\\tabcolsep-\\arrayrulewidth\\relax}'
-            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*70/100-2\\tabcolsep-\\arrayrulewidth\\relax}|}'
-            in table)
+    assert '\\begin{longtable}{|\\X{30}{100}|\\X{70}{100}|}' in table
 
     # longtable having caption
     table = tables['longtable having caption']
@@ -918,19 +905,12 @@ def test_latex_table(app, status, warning):
 
     # longtable having verbatim
     table = tables['longtable having verbatim']
-    assert ('\\begin{longtable}{|*{2}{'
-            'p{\\dimexpr(\\linewidth-\\arrayrulewidth)/2-2\\tabcolsep-\\arrayrulewidth\\relax}|}}\n'
-            '\\hline' in table)
+    assert ('\\begin{longtable}{|*{2}{\\X{1}{2}|}}\n\\hline' in table)
 
     # longtable having problematic cell
     table = tables['longtable having problematic cell']
-    assert ('\\begin{longtable}{|*{2}{'
-            'p{\\dimexpr(\\linewidth-\\arrayrulewidth)/2-2\\tabcolsep-\\arrayrulewidth\\relax}|}}\n'
-            '\\hline' in table)
+    assert ('\\begin{longtable}{|*{2}{\\X{1}{2}|}}\n\\hline' in table)
 
     # longtable having both :widths: and problematic cell
     table = tables['longtable having both :widths: and problematic cell']
-    assert ('\\begin{longtable}{'
-            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*30/100-2\\tabcolsep-\\arrayrulewidth\\relax}'
-            '|p{\\dimexpr(\\linewidth-\\arrayrulewidth)*70/100-2\\tabcolsep-\\arrayrulewidth\\relax}|}'
-            in table)
+    assert ('\\begin{longtable}{|\\X{30}{100}|\\X{70}{100}|}' in table)
