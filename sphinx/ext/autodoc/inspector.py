@@ -8,10 +8,12 @@
     :license: BSD, see LICENSE for details.
 """
 
+import re
 import sys
 import inspect
 
-from sphinx.ext.autodoc import importer
+from sphinx.ext.autodoc import ALL, importer
+from sphinx.ext.autodoc.visitor import SkipNode
 from sphinx.pycode import ModuleAnalyzer, PycodeError
 from sphinx.util import logging
 from sphinx.util.inspect import isenumclass, safe_getattr
@@ -19,6 +21,7 @@ from sphinx.util.inspect import isenumclass, safe_getattr
 if False:
     # For type annotation
     from typing import Any, Callable, Dict, Iterator, List, Tuple  # NOQA
+    from sphinx.ext.autodoc.visitor import Visitor  # NOQA
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +68,16 @@ class Namespace(object):
             return self.parent.get_analyzer()
         else:
             return None
+
+    def walk(self, visitor, attrgetter=safe_getattr):
+        # type: (Visitor, Callable) -> None
+        try:
+            visitor.dispatch_visit(self)
+            for member in self.get_members(attrgetter).values():
+                member.walk(visitor)
+            visitor.dispatch_departure(self)
+        except SkipNode:
+            pass
 
     def __repr__(self):
         # type: () -> str
@@ -124,6 +137,15 @@ class Module(Namespace):
 
 class Class(Namespace):
     type = 'class'
+
+    def __init__(self, subject, name, parent, is_public=True, inherited_member=False):
+        # type: (Any, str, Namespace, bool, bool) -> None
+        super(Class, self).__init__(subject, name, parent, is_public, inherited_member)
+
+        if name == getattr(subject, '__name__', None):
+            self.is_alias = False
+        else:
+            self.is_alias = True
 
     def get_members(self, attrgetter=safe_getattr):
         # type: (Callable) -> Dict[str, Namespace]
@@ -217,3 +239,106 @@ class Attribute(Namespace):
     def get_members(self, attrgetter=safe_getattr):
         # type: (Callable) -> Dict[str, Namespace]
         return {}
+
+
+def filter(subject, options):
+    if isinstance(subject, Module):
+        return AutodocModuleFilter(subject, options)
+    elif isinstance(subject, Class):
+        return AutodocClassFilter(subject, options)
+    else:
+        return
+
+
+class AutodocFilter(object):
+    def __init__(self, subject, options={}):
+        self.subject = subject
+        self.options = options
+
+    def get_members(self, attrgetter=safe_getattr):
+        members = self.subject.get_members(attrgetter)
+        for name, member in members.items():
+            if self.filter(member, attrgetter):
+                del members[name]
+            else:
+                members[name] = filter(member, self.options)
+
+        return members
+
+    def filter(self, member, attrgetter):
+        raise NotImplementedError
+
+
+class AutodocModuleFilter(AutodocFilter):
+    def filter(self, member, attrgetter):
+        if member.name in self.options.exclude_members:
+            return True
+
+        if self.options.members:
+            if member.name in self.options.members:
+                return False
+            else:
+                return True
+
+        if not self.options.ignore_module_all and not member.is_public:
+            return True
+
+        if not self.options.imported_members:
+            module = attrgetter(member, '__module__', None)
+            if self.subject.subject != module:
+                return True
+
+        return False
+
+
+class AutodocClassFilter(AutodocFilter):
+    def filter(self, member, attrgetter):
+        if member.name in self.options.get('exclude_members', []):
+            return True
+
+        members = self.options.get('members', [])
+        if members is ALL:
+            pass
+        elif members:
+            if member.name in members:
+                return False
+            else:
+                return True
+
+        if self.options.get('inherited-members', False) is False:
+            if member.inherited_member is False:
+                return True
+
+        special_members = self.options.get('special-members', [])
+        if special_members is ALL:
+            pass
+        elif special_members and re.match('^__.+__$', member.name):
+            if member.name not in special_members:
+                return True
+
+        private_members = self.option.get('private-members', False)
+        if private_members is False:
+            if not member.name.startswith('_'):
+                return True
+
+        return False
+
+
+# nodindex -> visitor
+# undoc-members -> visitor
+# synopsys -> visitor
+# platform -> visitor
+# deprecated -> visitor
+# annotation -> visitor
+
+# member-order -> inspector
+
+# members -> filter
+# inherited-members -> filter
+# exclude-members -> filter
+# private-members -> filter
+# special-members -> filter
+# imported-members -> filter
+# ignore-module-all -> filter
+
+# show-inheritance -> ?

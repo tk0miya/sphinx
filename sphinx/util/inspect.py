@@ -360,6 +360,10 @@ class Signature:
                 self.partialmethod_with_noargs = True
             else:
                 raise
+        except TypeError:
+            # non Python functions (ex. method-wrapper)
+            self.signature = None
+            self.argspec = None
 
         try:
             self.annotations = typing.get_type_hints(subject)
@@ -385,6 +389,8 @@ class Signature:
     @property
     def parameters(self) -> Mapping:
         if self.partialmethod_with_noargs:
+            return {}
+        elif self.signature is None:
             return {}
         else:
             return self.signature.parameters
