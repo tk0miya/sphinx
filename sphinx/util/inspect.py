@@ -40,6 +40,7 @@ else:
 logger = logging.getLogger(__name__)
 
 memory_address_re = re.compile(r' at 0x[0-9a-f]{8,16}(?=>)', re.IGNORECASE)
+special_method_re = re.compile('^__[a-z0-9].*__$', re.IGNORECASE)
 
 
 # Copied from the definition of inspect.getfullargspec from Python master,
@@ -222,6 +223,16 @@ def iscoroutinefunction(obj: Any) -> bool:
 def isproperty(obj: Any) -> bool:
     """Check if the object is property."""
     return isinstance(obj, property)
+
+
+def isspecialmethod(name: str) -> bool:
+    """Check if the method is special method."""
+    return special_method_re.match(name)
+
+
+def isprivatemember(name: str) -> bool:
+    """Check if the member is private member."""
+    return name.startswith('_')
 
 
 def safe_getattr(obj: Any, name: str, *defargs) -> Any:

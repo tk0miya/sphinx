@@ -544,8 +544,7 @@ class Documenter:
             has_doc = bool(doc)
 
             keep = False
-            if want_all and membername.startswith('__') and \
-                    membername.endswith('__') and len(membername) > 4:
+            if want_all and inspect.isspecialmethod(membername):
                 # special __methods__
                 if self.options.special_members is ALL and \
                         membername != '__doc__':
@@ -555,6 +554,7 @@ class Documenter:
                         membername in self.options.special_members:
                     keep = has_doc or self.options.undoc_members
             elif (namespace, membername) in attr_docs:
+                has_doc = bool(attr_docs[namespace, membername])
                 if want_all and membername.startswith('_'):
                     # ignore members whose name starts with _ by default
                     keep = self.options.private_members
@@ -562,7 +562,7 @@ class Documenter:
                     # keep documented attributes
                     keep = True
                 isattr = True
-            elif want_all and membername.startswith('_'):
+            elif want_all and inspect.isprivatemember(membername):
                 # ignore members whose name starts with _ by default
                 keep = self.options.private_members and \
                     (has_doc or self.options.undoc_members)
