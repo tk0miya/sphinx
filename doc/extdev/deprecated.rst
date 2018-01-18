@@ -257,6 +257,12 @@ The following is a list of deprecated interfaces.
      - 2.1
      - 4.0
      - ``sphinx.errors.NoUri``
+
+   * - ``sphinx.environment.BuildEnvironment.get_outdated_files()``
+     - 2.1
+     - 4.0
+     - ``sphinx.project.Project.get_outdated_docs()``
+
    * - ``sphinx.ext.apidoc.format_directive()``
      - 2.1
      - 4.0

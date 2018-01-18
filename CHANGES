@@ -573,6 +573,7 @@ Deprecated
 * ``sphinx.domains.cpp.DefinitionError.description``
 * ``sphinx.domains.cpp.NoOldIdError.description``
 * ``sphinx.domains.cpp.UnsupportedMultiCharacterCharLiteral.decoded``
+* ``sphinx.environment.BuildEnvironment.get_outdated_files()``
 * ``sphinx.ext.autodoc.importer._MockImporter``
 * ``sphinx.ext.autosummary.Autosummary.warn()``
 * ``sphinx.ext.autosummary.Autosummary.genopt``

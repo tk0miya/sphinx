@@ -396,53 +396,10 @@ class BuildEnvironment:
 
     def get_outdated_files(self, config_changed: bool) -> Tuple[Set[str], Set[str], Set[str]]:
         """Return (added, changed, removed) sets."""
-        # clear all files no longer present
-        removed = set(self.all_docs) - self.found_docs
-
-        added = set()  # type: Set[str]
-        changed = set()  # type: Set[str]
-
-        if config_changed:
-            # config values affect e.g. substitutions
-            added = self.found_docs
-        else:
-            for docname in self.found_docs:
-                if docname not in self.all_docs:
-                    added.add(docname)
-                    continue
-                # if the doctree file is not there, rebuild
-                filename = path.join(self.doctreedir, docname + '.doctree')
-                if not path.isfile(filename):
-                    changed.add(docname)
-                    continue
-                # check the "reread always" list
-                if docname in self.reread_always:
-                    changed.add(docname)
-                    continue
-                # check the mtime of the document
-                mtime = self.all_docs[docname]
-                newmtime = path.getmtime(self.doc2path(docname))
-                if newmtime > mtime:
-                    changed.add(docname)
-                    continue
-                # finally, check the mtime of dependencies
-                for dep in self.dependencies[docname]:
-                    try:
-                        # this will do the right thing when dep is absolute too
-                        deppath = path.join(self.srcdir, dep)
-                        if not path.isfile(deppath):
-                            changed.add(docname)
-                            break
-                        depmtime = path.getmtime(deppath)
-                        if depmtime > mtime:
-                            changed.add(docname)
-                            break
-                    except OSError:
-                        # give it another chance
-                        changed.add(docname)
-                        break
-
-        return added, changed, removed
+        warnings.warn('env.get_outdated_files() is deprecated. '
+                      'Use app.project.get_outdated_docs() instead.',
+                      RemovedInSphinx40Warning)
+        return self.app.project.get_outdated_docs(self, config_changed)
 
     def check_dependents(self, app: "Sphinx", already: Set[str]) -> Generator[str, None, None]:
         to_rewrite = []  # type: List[str]

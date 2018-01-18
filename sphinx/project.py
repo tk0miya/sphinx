@@ -19,7 +19,8 @@ from sphinx.util.osutil import SEP, relpath
 
 if False:
     # For type annotation
-    from typing import Dict, List, Set  # NOQA
+    from typing import Dict, List, Set, Tuple  # NOQA
+    from sphinx.environment import BuildEnvironment  # NOQA
 
 
 logger = logging.getLogger(__name__)
@@ -98,3 +99,62 @@ class Project:
             return basename + suffix
         else:
             return docname + suffix
+
+    def get_outdated_docs(self, env, force_update=False):
+        # type: (BuildEnvironment, bool) -> Tuple[Set[str], Set[str], Set[str]]
+        """Detect added, changed and removed documents since last build.
+
+        Return (added, changed, removed) sets.
+        """
+        added = set()  # type: Set[str]
+        changed = set()  # type: Set[str]
+        removed = set(env.all_docs) - self.docnames
+
+        if force_update:
+            # On force update, all documents are considered as added.
+            # (e.g. config values changed)
+            added = self.docnames
+        else:
+            for docname in self.docnames:
+                # new file
+                if docname not in env.all_docs:
+                    added.add(docname)
+                    continue
+
+                # if the doctree file is not there, rebuild
+                doctree = os.path.join(env.doctreedir, docname + '.doctree')
+                if not os.path.isfile(doctree):
+                    changed.add(docname)
+                    continue
+
+                # check the "reread always" list
+                if docname in env.reread_always:
+                    changed.add(docname)
+                    continue
+
+                # check the mtime of the document
+                mtime = env.all_docs[docname]
+                newmtime = os.path.getmtime(self.doc2path(docname))
+                if newmtime > mtime:
+                    changed.add(docname)
+                    continue
+
+                # finally, check the mtime of dependencies
+                for dep in env.dependencies[docname]:
+                    try:
+                        # this will do the right thing when dep is absolute too
+                        deppath = os.path.join(self.srcdir, dep)
+                        if not os.path.isfile(deppath):
+                            changed.add(docname)
+                            break
+
+                        depmtime = os.path.getmtime(deppath)
+                        if depmtime > mtime:
+                            changed.add(docname)
+                            break
+                    except OSError:
+                        # give it another chance
+                        changed.add(docname)
+                        break
+
+        return added, changed, removed

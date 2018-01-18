@@ -82,3 +82,82 @@ def test_project_doc2path(app):
 
     # relative path
     assert project.doc2path('index', basedir=False) == 'index.rst'
+
+
+@pytest.mark.sphinx(srcdir='project_get_outdated_docs', testroot='basic')
+def test_project_get_outdated_docs(app):
+    project = Project(app.srcdir, app.config)
+    project.discover()
+
+    # initial build
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == {'index'}
+    assert changed == set()
+    assert removed == set()
+
+    # add modified time to env
+    mtime = (app.srcdir / 'index.rst').stat().st_mtime
+    app.env.all_docs['index'] = mtime
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == set()
+    assert changed == {'index'}
+    assert removed == set()
+
+    # create .doctree file
+    (app.doctreedir / 'index.doctree').write_text('')
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == set()
+    assert changed == set()
+    assert removed == set()
+
+    # mark as reread
+    app.env.reread_always.add('index')
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == set()
+    assert changed == {'index'}
+    assert removed == set()
+
+    # mark as updated
+    app.env.reread_always = set()
+    (app.srcdir / 'index.rst').utime((mtime + 1, mtime + 1))
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == set()
+    assert changed == {'index'}
+    assert removed == set()
+
+    # dependencies check (not changed)
+    app.env.dependencies['index'].add('style.css')
+    (app.srcdir / 'style.css').write_text('')
+    (app.srcdir / 'style.css').utime((mtime, mtime))
+    (app.srcdir / 'index.rst').utime((mtime, mtime))
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == set()
+    assert changed == set()
+    assert removed == set()
+
+    # dependencies file has been updated
+    (app.srcdir / 'style.css').utime((mtime + 1, mtime + 1))
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == set()
+    assert changed == {'index'}
+    assert removed == set()
+
+    # dependencies file has been removed
+    (app.srcdir / 'style.css').unlink()
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == set()
+    assert changed == {'index'}
+    assert removed == set()
+
+    # force update
+    added, changed, removed = project.get_outdated_docs(app.env, True)
+    assert added == {'index'}
+    assert changed == set()
+    assert removed == set()
+
+    # document has been removed
+    app.env.all_docs['foo'] = mtime
+    added, changed, removed = project.get_outdated_docs(app.env)
+    assert added == set()
+    assert changed == {'index'}
+    assert removed == {'foo'}

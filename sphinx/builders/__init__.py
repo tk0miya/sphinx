@@ -376,7 +376,7 @@ class Builder:
 
         self.env.find_files(self.config, self)
         updated = (self.env.config_status != CONFIG_OK)
-        added, changed, removed = self.env.get_outdated_files(updated)
+        added, changed, removed = self.app.project.get_outdated_docs(self.env, updated)
 
         # allow user intervention as well
         for docs in self.events.emit('env-get-outdated', self, added, changed, removed):

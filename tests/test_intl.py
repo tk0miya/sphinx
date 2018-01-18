@@ -589,7 +589,7 @@ def test_gettext_dont_rebuild_mo(make_app, app_params):
     # --- don't rebuild by .mo mtime
     def get_number_of_update_targets(app_):
         app_.env.find_files(app_.config, app_.builder)
-        _, updated, _ = app_.env.get_outdated_files(config_changed=False)
+        _, updated, _ = app_.project.get_outdated_docs(app_.env, force_update=False)
         return len(updated)
 
     args, kwargs = app_params
@@ -772,13 +772,13 @@ def test_html_rebuild_mo(app):
     # --- rebuild by .mo mtime
     app.builder.build_update()
     app.env.find_files(app.config, app.builder)
-    _, updated, _ = app.env.get_outdated_files(config_changed=False)
+    _, updated, _ = app.project.get_outdated_docs(app.env, force_update=False)
     assert len(updated) == 0
 
     mtime = (app.srcdir / 'xx' / 'LC_MESSAGES' / 'bom.mo').stat().st_mtime
     (app.srcdir / 'xx' / 'LC_MESSAGES' / 'bom.mo').utime((mtime + 5, mtime + 5))
     app.env.find_files(app.config, app.builder)
-    _, updated, _ = app.env.get_outdated_files(config_changed=False)
+    _, updated, _ = app.project.get_outdated_docs(app.env, force_update=False)
     assert len(updated) == 1
 
 
