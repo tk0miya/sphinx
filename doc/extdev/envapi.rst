@@ -47,6 +47,14 @@ Build environment API
 
    **Utility methods**
 
+   .. automethod:: __getitem__
+
+   .. automethod:: __setitem__
+
+   .. automethod:: __delitem__
+
+   .. automethod:: get
+
    .. automethod:: doc2path
 
    .. automethod:: relfn2path

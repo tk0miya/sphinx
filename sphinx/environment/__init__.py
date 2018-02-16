@@ -258,6 +258,68 @@ class BuildEnvironment:
         # Allow to disable by 3rd party extension (workaround)
         self.settings.setdefault('smart_quotes', True)
 
+    def __getitem__(self, key: str) -> Any:
+        """Get a generic data for *key* from environment object.
+
+        For more details, please read :meth:`__setitem__()`.
+
+        .. versionadded:: 1.8
+        """
+        return self.data[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Store a generic *value* into environment object using *key* string.
+
+        The sphinx extensions can store its own data to environment object
+        like a dictionary::
+
+            # Store a data into env
+            env['myext.property'] = your_data
+
+            # Fetch the data from env
+            data = env['myext.property']
+            data = env.get('myext.property')
+
+        The stored data will be saved to local disk if build suceeded.  And it
+        will be loaded in next build (a.k.a incremental build).  It is kept
+        stored during the builds are suceeded.  Therefore, the extensions can
+        use it as a kind of cache or a temporary data store.
+
+        On the saving to disk, the stored data is serialized using ``pickle``.
+        Therefore, the extensions should not store unpicklable objects (ex.
+        IO objects, functions, and so on).
+
+        In addition, the stored data is sometimes cleared by users.  They can
+        clear it in several ways.  ``make clean`` and ``sphinx-build -E`` are
+        one of them.  Hence, please design carefully for what data is stored.
+        Basically, reproducible data is recommended.
+
+        .. note:: If the extensions stores data during reading phase, please
+                  implement a handler for :event:`env-merge-info` event to
+                  support parallel builds.
+
+        .. versionadded:: 1.8
+        """
+        self.data[key] = Any
+
+    def __delitem__(self, key: str) -> None:
+        """Remove a generic data for *key* from environment object.
+
+        For more details, please read :meth:`__setitem__()`.
+
+        .. versionadded:: 1.8
+        """
+        del self.data[key]
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a generic data for *key* from environment object.
+
+        For more details, please read :meth:`__setitem__()`.
+
+        .. versionadded:: 1.8
+        """
+        return self.data.get(key, default)
+
     def set_versioning_method(self, method: Union[str, Callable], compare: bool) -> None:
         """This sets the doctree versioning method for this environment.
 
