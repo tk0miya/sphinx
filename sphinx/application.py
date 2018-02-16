@@ -156,6 +156,7 @@ class Sphinx:
         # validate provided directories
         self.srcdir = abspath(srcdir)
         self.outdir = abspath(outdir)
+        self.cachedir = abspath(doctreedir)  # For a while, same as doctreedir
         self.doctreedir = abspath(doctreedir)
         self.confdir = confdir
         if self.confdir:  # confdir is optional
