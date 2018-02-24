@@ -181,10 +181,6 @@ class BuildEnvironment:
 
         # temporary data storage while reading a document
         self.temp_data = {}         # type: Dict[str, Any]
-        # context for cross-references (e.g. current module or class)
-        # this is similar to temp_data, but will for example be copied to
-        # attributes of "any" cross references
-        self.ref_context = {}       # type: Dict[str, Any]
 
         # set up environment
         if app:
@@ -468,6 +464,37 @@ class BuildEnvironment:
     def docname(self) -> str:
         """Returns the docname of the document currently being parsed."""
         return self.temp_data['docname']
+
+    @property
+    def ref_context(self) -> Dict[str, Any]:
+        """Returns the context data for cross-references.
+
+        It represents current context for markups of cross-references.
+        For example, python domain uses this internally::
+
+            .. switch "python module context" to sphinx.application
+            .. currentmodule:: sphinx.application
+
+            .. py:class:: Sphinx
+
+               This is a description fo "sphinx.application.Sphinx" class.
+
+            .. switch "python module context" to another.module
+            .. currentmodule:: another.module
+
+            .. py:class:: Sphinx
+
+               This is a description fo "another.module.Sphinx" class.
+
+        The context data is used to define a namespace.  It is used for
+        creating object description (like classes, methods and so on).  It
+        also uses for creating cross-references nodes.  Especially, ``any``
+        role copies this context data as attributes of reference node.
+
+        .. versionchanged:: 1.8
+           Now ref_context becomes a part of ``temp_data``.
+        """
+        return self.temp_data.setdefault('ref_context', {})
 
     def new_serialno(self, category: str = '') -> int:
         """Return a serial number, e.g. for index entry targets.

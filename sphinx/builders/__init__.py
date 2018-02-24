@@ -487,7 +487,6 @@ class Builder:
 
         # cleanup
         self.env.temp_data.clear()
-        self.env.ref_context.clear()
 
         self.write_doctree(docname, doctree)
 
