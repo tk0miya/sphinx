@@ -17,6 +17,7 @@ from docutils.parsers.rst import states
 from docutils.statemachine import StringList
 from docutils.transforms.universal import SmartQuotes
 
+from sphinx import SphinxComponent
 from sphinx.util.rst import append_epilog, prepend_prolog
 
 if False:
@@ -26,7 +27,7 @@ if False:
     from sphinx.application import Sphinx
 
 
-class Parser(docutils.parsers.Parser):
+class Parser(docutils.parsers.Parser, SphinxComponent):
     """
     A base class of source parsers.  The additional parsers should inherit this class instead
     of ``docutils.parsers.Parser``.  Compared with ``docutils.parsers.Parser``, this class
@@ -55,8 +56,7 @@ class Parser(docutils.parsers.Parser):
         :param sphinx.application.Sphinx app: Sphinx application object
         """
         self.app = app
-        self.config = app.config
-        self.env = app.env
+        self.setup(app.env, app.config, app.registry)
 
 
 class RSTParser(docutils.parsers.rst.Parser, Parser):
