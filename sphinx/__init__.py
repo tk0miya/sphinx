@@ -22,6 +22,9 @@ from .deprecation import RemovedInNextVersionWarning
 if False:
     # For type annotation
     from typing import Any  # NOQA
+    from sphinx.config import Config  # NOQA
+    from sphinx.environment import BuildEnvironment  # NOQA
+    from sphinx.registry import SphinxComponentRegistry  # NOQA
 
 
 # by default, all DeprecationWarning under sphinx package will be emit.
@@ -61,3 +64,22 @@ if __version__.endswith('+'):
             __display_version__ += '/' + ret.stdout.strip()
     except Exception:
         pass
+
+
+class SphinxComponent(object):
+    """Base class for Sphinx core components."""
+    #: Reference to the :class:`env <.BuildEnvironment>` object.
+    env = None          # type: BuildEnvironment
+
+    #: Reference to the :class:`.Config` object.
+    config = None       # type: Config
+
+    #: Reference to the :class:`SphinxComponentRegistry` object.
+    registry = None     # type: SphinxComponentRegistry
+
+    def setup(self, env, config, registry):
+        # type: (BuildEnvironment, Config, SphinxComponentRegistry) -> None
+        """Set up SphinxComponent."""
+        self.env = env
+        self.config = config
+        self.registry = registry
