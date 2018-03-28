@@ -205,6 +205,7 @@ Deprecated
 * ``sphinx.ext.todo.process_todo_nodes()``
 * ``sphinx.ext.todo.process_todos()``
 * ``sphinx.ext.todo.purge_todos()``
+* ``sphinx.parsers.Parser.app``
 
 Features added
 --------------

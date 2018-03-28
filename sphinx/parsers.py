@@ -8,6 +8,7 @@
     :license: BSD, see LICENSE for details.
 """
 
+import warnings
 from typing import Any, Dict, List, Union
 
 import docutils.parsers
@@ -18,6 +19,7 @@ from docutils.statemachine import StringList
 from docutils.transforms.universal import SmartQuotes
 
 from sphinx import SphinxComponent
+from sphinx.deprecation import RemovedInSphinx40Warning
 from sphinx.util.rst import append_epilog, prepend_prolog
 
 if False:
@@ -48,6 +50,8 @@ class Parser(docutils.parsers.Parser, SphinxComponent):
 
     .. deprecated:: 1.6
        ``warn()`` and ``info()`` is deprecated.  Use :mod:`sphinx.util.logging` instead.
+    .. deprecated:: 1.8
+       parser.app is deprecated.
     """
 
     def set_application(self, app: "Sphinx") -> None:
@@ -55,8 +59,19 @@ class Parser(docutils.parsers.Parser, SphinxComponent):
 
         :param sphinx.application.Sphinx app: Sphinx application object
         """
-        self.app = app
+        self._app = app
         self.setup(app.env, app.config, app.registry)
+
+    @property
+    def app(self):
+        # type: () -> Sphinx
+        """The application object (:class:`.Sphinx`)
+
+        .. deprecated:: 2.0
+           parser.app is deprecated.
+        """
+        warnings.warn('parser.app is deprecated.', RemovedInSphinx40Warning)
+        return self._app
 
 
 class RSTParser(docutils.parsers.rst.Parser, Parser):

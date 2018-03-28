@@ -122,6 +122,11 @@ The following is a list of deprecated interfaces.
      - 4.0
      - ``sphinx.ext.todo.TodoDomain``
 
+   * - ``sphinx.parsers.Parser.app``
+     - 2.2
+     - 4.0
+     - N/A
+
    * - ``sphinx.builders.latex.LaTeXBuilder.apply_transforms()``
      - 2.1
      - 4.0
