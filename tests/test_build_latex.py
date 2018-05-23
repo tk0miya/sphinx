@@ -1443,6 +1443,14 @@ def test_latex_labels(app, status, warning):
     assert (r'\sphinxcaption{table caption}'
             r'\label{\detokenize{index:table3}}' in result)
 
+    # math_blocks
+    raise
+    assert (r'\sphinxcaption{table caption}'
+            r'\label{\detokenize{index:id2}}'
+            r'\label{\detokenize{index:table2}}'
+            r'\label{\detokenize{index:table1}}' in result)
+    assert (r'\begin{equation}\label{equation:index:equation3}' in result)
+
     # sections
     assert ('\\chapter{subsection}\n'
             r'\label{\detokenize{index:subsection}}'

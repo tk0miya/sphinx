@@ -39,6 +39,7 @@ class thebibliography(nodes.container):
 HYPERLINK_SUPPORT_NODES = (
     nodes.figure,
     nodes.literal_block,
+    nodes.math_block,
     nodes.table,
     nodes.section,
     captioned_literal_block,

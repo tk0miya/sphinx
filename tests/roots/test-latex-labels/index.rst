@@ -54,6 +54,17 @@ tables
    cell cell
    ==== ====
 
+math_blocks
+-----------
+
+.. _equation1:
+.. _equation2:
+
+.. math:: E = mc^2
+
+.. math:: E = mc^2
+   :label: equation3
+
 .. _section1:
 .. _section2:
 
