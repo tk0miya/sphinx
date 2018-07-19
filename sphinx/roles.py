@@ -12,6 +12,8 @@ import re
 import warnings
 
 from docutils import nodes, utils
+from docutils.parsers.rst import directives
+from docutils.parsers.rst.roles import set_classes
 
 from sphinx import addnodes
 from sphinx.deprecation import RemovedInSphinx40Warning
@@ -618,6 +620,24 @@ specific_docroles = {
 }  # type: Dict[str, RoleFunction]
 
 
+def code_role(typ, rawtext, text, lineno, inliner, options={}, content=[]):
+    # type: (unicode, unicode, unicode, int, Inliner, Dict, List[unicode]) -> Tuple[List[nodes.Node], List[nodes.Node]]  # NOQA
+    set_classes(options)
+    atts = {'classes': ['code']}
+    if 'classes' in options:
+        atts['classes'].extend(options['classes'])
+    if 'language' in options:
+        atts['language'] = options['language']
+
+    node = nodes.literal(rawtext, text, **atts)
+
+    return [node], []
+
+
+code_role.options = {'class': directives.class_option,
+                     'language': directives.unchanged}
+
+
 def setup(app):
     # type: (Sphinx) -> Dict[str, Any]
     from docutils.parsers.rst import roles
@@ -629,6 +649,8 @@ def setup(app):
 
     for rolename, func in specific_docroles.items():
         roles.register_local_role(rolename, func)
+
+    roles.register_canonical_role('code', code_role)
 
     return {
         'version': 'builtin',

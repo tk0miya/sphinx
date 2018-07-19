@@ -96,6 +96,18 @@ class HighlightLanguageVisitor(nodes.NodeVisitor):
             lines = node.astext().count('\n')
             node['linenos'] = (lines >= setting.lineno_threshold - 1)
 
+    def visit_literal(self, node):
+        # type: (nodes.literal) -> None
+        setting = self.settings[-1]
+        if 'code' in node['classes']:
+            if 'language' not in node:
+                node['language'] = setting.language
+                node['force_highlighting'] = False
+            else:
+                node['force_highlighting'] = True
+
+            # TODO: classes should be updated also.
+
 
 class TrimDoctestFlagsTransform(SphinxTransform):
     """

@@ -537,6 +537,16 @@ class HTMLTranslator(SphinxTranslator, BaseTranslator):
         if 'kbd' in node['classes']:
             self.body.append(self.starttag(node, 'kbd', '',
                                            CLASS='docutils literal notranslate'))
+        elif 'code' in node['classes'] and 'language' in node:
+            highlighted = self.highlighter.highlight_block(
+                node.astext(), node['language'], force=True, nowrap=True,
+                location=(self.builder.current_docname, node.line)
+            )
+            self.body.append(self.starttag(node, 'code', '',
+                                           CLASS='docutils literal notranslate highlight'))
+            self.body.append(highlighted)
+            self.body.append('</code>')
+            raise nodes.SkipNode
         else:
             self.body.append(self.starttag(node, 'code', '',
                                            CLASS='docutils literal notranslate'))
