@@ -13,12 +13,13 @@ from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Type
 
 from docutils import nodes, utils
 from docutils.nodes import Element, Node, TextElement, system_message
+from docutils.parsers.rst import directives
 
 from sphinx import addnodes
 from sphinx.locale import _
 from sphinx.util import ws_re
 from sphinx.util.docutils import ReferenceRole, SphinxRole
-from sphinx.util.typing import RoleFunction
+from sphinx.util.typing import OptionSpec, RoleFunction
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -357,6 +358,24 @@ specific_docroles = {
 }  # type: Dict[str, RoleFunction]
 
 
+class Code(SphinxRole):
+    options: OptionSpec = {
+        'class': directives.class_option,
+        'language': directives.unchanged
+    }
+
+    def run(self) -> Tuple[List[Node], List[system_message]]:
+        atts = {'classes': ['code']}
+        if 'classes' in self.options:
+            atts['classes'].extend(self.options['classes'])
+        if 'language' in self.options:
+            atts['language'] = self.options['language']
+
+        node = nodes.literal(self.rawtext, self.text, **atts)
+
+        return [node], []
+
+
 def setup(app: "Sphinx") -> Dict[str, Any]:
     from docutils.parsers.rst import roles
 
@@ -367,6 +386,8 @@ def setup(app: "Sphinx") -> Dict[str, Any]:
 
     for rolename, func in specific_docroles.items():
         roles.register_local_role(rolename, func)
+
+    roles.register_canonical_role('code', Code)
 
     return {
         'version': 'builtin',
