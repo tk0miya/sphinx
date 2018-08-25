@@ -455,10 +455,6 @@ class Locale(SphinxTransform):
                 node['raw_entries'] = entries
                 node['entries'] = new_entries
 
-        # remove translated attribute that is used for avoiding double translation.
-        for translated in self.document.traverse(NodeMatcher(translated=Any)):  # type: nodes.Element  # NOQA
-            translated.delattr('translated')
-
     def get_message_catalog(self, docname):
         # type: (str) -> NullTranslations
         """Search message catalog for given document.
@@ -472,6 +468,17 @@ class Locale(SphinxTransform):
             return catalog
         else:
             raise IOError('message catalog not found')
+
+
+class TranslatedAttributesCleaner(SphinxTransform):
+    """Clean up ``translated`` attributes from each nodes."""
+    default_priority = Locale.default_priority + 1
+
+    def apply(self):
+        # type: () -> None
+        """Remove translated attribute that is used for avoiding double translation."""
+        for translated in self.document.traverse(NodeMatcher(translated=Any)):  # type: nodes.Element  # NOQA
+            translated.delattr('translated')
 
 
 class RemoveTranslatableInline(SphinxTransform):
@@ -496,6 +503,7 @@ def setup(app):
     # type: (Sphinx) -> Dict[str, Any]
     app.add_transform(PreserveTranslatableMessages)
     app.add_transform(Locale)
+    app.add_transform(TranslatedAttributesCleaner)
     app.add_transform(RemoveTranslatableInline)
 
     return {
