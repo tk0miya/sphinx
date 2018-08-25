@@ -14,6 +14,7 @@ from typing import Any, TypeVar
 
 from docutils import nodes
 from docutils.io import StringInput
+from docutils.utils import column_width
 
 from sphinx import addnodes
 from sphinx.domains.std import make_glossary_term, split_term_classifiers
@@ -79,7 +80,130 @@ class PreserveTranslatableMessages(SphinxTransform):
             node.preserve_original_messages()
 
 
-class Locale(SphinxTransform):
+class BaseTranslator(SphinxTransform):
+    """A base class for translators."""
+    condition = None    # type: Any
+    source = None       # type: str
+    settings = None     # type: Any
+
+    def apply(self):
+        self.settings = self.document.settings
+        self.document = self.document['source']
+
+        try:
+            docname = self.env.project.path2doc(source)
+            catalog = self.get_message_catalog(docname)
+        except IOError:
+            return  # no message catalog for this document
+
+        for node in self.document.traverse(self.condition):
+            for extracted, msgid in extract_messages(node):
+                msgstr = catalog.gettext(msgid)
+                if not msgstr or msgstr == msgid or not msgstr.strip():
+                    # not translated.
+                    pass
+                else:
+                    self.translate(node, msgid, msgstr)
+
+    def translate(self, node, msgid, msgstr):
+        # type: (nodes.Node, str, str) -> None
+        """Translate a node."""
+        raise NotImplementedError
+
+    def get_message_catalog(self, docname):
+        # type: (str) -> NullTranslations
+        """Search message catalog for given document.
+
+        Raises ``IOError`` if not found.
+        """
+        locale_dirs = [path.join(self.env.srcdir, d) for d in self.config.locale_dirs]
+        domain = docname_to_domain(docname, self.config.gettext_compact)
+        catalog, has_catalog = init_locale(locale_dirs, self.config.language, domain)
+        if has_catalog:
+            return catalog
+        else:
+            raise IOError('message catalog not found')
+
+
+class TitleTranslator(BaseTranslator):
+    """Translator class for title node."""
+    condition = nodes.title
+    default_priority = 19  # before Locale
+
+    def translate(self, node, msgid, msgstr):
+        # type: (nodes.Node, str, str) -> None
+        """Translate a node."""
+        def underline(s):
+            # type: (str) -> str
+            width = column_width(s)
+            return "%s\n%s" % (s, "=" * width)
+
+        patch = publish_msgstr(self.app, underline(msgstr), self.source,
+                               node.line, self.config, self.settings)
+
+        section_node = node.parent
+        new_name = nodes.fully_normalize_name(patch.astext())
+        old_name = nodes.fully_normalize_name(node.astext())
+
+        if old_name != new_name:
+            # if name would be changed, replace node names and
+            # document nameids mapping with new name.
+            names = section_node.setdefault('names', [])
+            names.append(new_name)
+
+            # Original section name (reference target name) should be kept to refer
+            # from other nodes which is still not translated or uses explicit target
+            # name like "`text to display <explicit target name_>`_"..
+            # So, `old_name` is still exist in `names`.
+            _id = self.document.nameids.get(old_name, None)
+            explicit = self.document.nametypes.get(old_name, None)
+
+            # * if explicit: _id is label. title node need another id.
+            # * if not explicit:
+            #
+            #   * if _id is None:
+            #
+            #     _id is None means:
+            #
+            #     1. _id was not provided yet.
+            #
+            #     2. _id was duplicated.
+            #
+            #        old_name entry still exists in nameids and
+            #        nametypes for another duplicated entry.
+            #
+            #   * if _id is provided: bellow process
+            if _id:
+                if not explicit:
+                    # _id was not duplicated.
+                    # remove old_name entry from document ids database
+                    # to reuse original _id.
+                    self.document.nameids.pop(old_name, None)
+                    self.document.nametypes.pop(old_name, None)
+                    self.document.ids.pop(_id, None)
+
+                # re-entry with new named section node.
+                #
+                # Note: msgnode that is a second parameter of the
+                # `note_implicit_target` is not necessary here because
+                # section_node has been noted previously on rst parsing by
+                # `docutils.parsers.rst.states.RSTState.new_subsection()`
+                # and already has `system_message` if needed.
+                self.document.note_implicit_target(section_node)
+
+            # replace target's refname to new target name
+            matcher = NodeMatcher(nodes.target, refname=old_name)
+            for old_target in self.document.traverse(matcher):  # type: nodes.target
+                old_target['refname'] = new_name
+
+        # combine translations
+        for child in patch.children:
+            child.parent = node
+        node.children = patch.children
+        node['translated'] = True
+
+
+class Locale(BaseTranslator):
     """
     Replace translatable nodes with their translated doctree.
     """
@@ -98,7 +222,10 @@ class Locale(SphinxTransform):
 
         # phase1: replace reference ids with translated names
         for node, msg in extract_messages(self.document):
-            msgstr = catalog.gettext(msg)
+            if node.get('translated', False):  # to avoid double translation
+                continue  # skip if the node is already translated by phase1
+
+            msgstr = catalog.gettext(msg)  # type: ignore
             # XXX add marker to untranslated parts
             if not msgstr or msgstr == msg or not msgstr.strip():
                 # as-of-yet untranslated
@@ -124,65 +251,6 @@ class Locale(SphinxTransform):
                 continue  # skip for now
 
             processed = False  # skip flag
-
-            # update title(section) target name-id mapping
-            if isinstance(node, nodes.title):
-                section_node = node.parent
-                new_name = nodes.fully_normalize_name(patch.astext())
-                old_name = nodes.fully_normalize_name(node.astext())
-
-                if old_name != new_name:
-                    # if name would be changed, replace node names and
-                    # document nameids mapping with new name.
-                    names = section_node.setdefault('names', [])
-                    names.append(new_name)
-                    # Original section name (reference target name) should be kept to refer
-                    # from other nodes which is still not translated or uses explicit target
-                    # name like "`text to display <explicit target name_>`_"..
-                    # So, `old_name` is still exist in `names`.
-
-                    _id = self.document.nameids.get(old_name, None)
-                    explicit = self.document.nametypes.get(old_name, None)
-
-                    # * if explicit: _id is label. title node need another id.
-                    # * if not explicit:
-                    #
-                    #   * if _id is None:
-                    #
-                    #     _id is None means:
-                    #
-                    #     1. _id was not provided yet.
-                    #
-                    #     2. _id was duplicated.
-                    #
-                    #        old_name entry still exists in nameids and
-                    #        nametypes for another duplicated entry.
-                    #
-                    #   * if _id is provided: bellow process
-                    if _id:
-                        if not explicit:
-                            # _id was not duplicated.
-                            # remove old_name entry from document ids database
-                            # to reuse original _id.
-                            self.document.nameids.pop(old_name, None)
-                            self.document.nametypes.pop(old_name, None)
-                            self.document.ids.pop(_id, None)
-
-                        # re-entry with new named section node.
-                        #
-                        # Note: msgnode that is a second parameter of the
-                        # `note_implicit_target` is not necessary here because
-                        # section_node has been noted previously on rst parsing by
-                        # `docutils.parsers.rst.states.RSTState.new_subsection()`
-                        # and already has `system_message` if needed.
-                        self.document.note_implicit_target(section_node)
-
-                    # replace target's refname to new target name
-                    matcher = NodeMatcher(nodes.target, refname=old_name)
-                    for old_target in self.document.traverse(matcher):  # type: nodes.target
-                        old_target['refname'] = new_name
-
-                    processed = True
 
             # glossary terms update refid
             if isinstance(node, nodes.term):
@@ -455,20 +523,6 @@ class Locale(SphinxTransform):
                 node['raw_entries'] = entries
                 node['entries'] = new_entries
 
-    def get_message_catalog(self, docname):
-        # type: (str) -> NullTranslations
-        """Search message catalog for given document.
-
-        Raises ``IOError`` if not found.
-        """
-        locale_dirs = [path.join(self.env.srcdir, d) for d in self.config.locale_dirs]
-        domain = docname_to_domain(docname, self.config.gettext_compact)
-        catalog, has_catalog = init_locale(locale_dirs, self.config.language, domain)
-        if has_catalog:
-            return catalog
-        else:
-            raise IOError('message catalog not found')
-
 
 class TranslatedAttributesCleaner(SphinxTransform):
     """Clean up ``translated`` attributes from each nodes."""
@@ -502,6 +556,7 @@ class RemoveTranslatableInline(SphinxTransform):
 def setup(app):
     # type: (Sphinx) -> Dict[str, Any]
     app.add_transform(PreserveTranslatableMessages)
+    app.add_transform(TitleTranslator)
     app.add_transform(Locale)
     app.add_transform(TranslatedAttributesCleaner)
     app.add_transform(RemoveTranslatableInline)

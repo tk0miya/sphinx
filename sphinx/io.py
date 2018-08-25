@@ -25,7 +25,7 @@ from sphinx.transforms import (
 )
 from sphinx.transforms.i18n import (
     PreserveTranslatableMessages, Locale, TranslatedAttributesCleaner,
-    RemoveTranslatableInline,
+    RemoveTranslatableInline, TitleTranslator,
 )
 from sphinx.transforms.references import SphinxDomains
 from sphinx.util import logging
@@ -139,7 +139,7 @@ class SphinxI18nReader(SphinxBaseReader):
         self.transforms = self.transforms + app.registry.get_transforms()
         unused = [PreserveTranslatableMessages, Locale, RemoveTranslatableInline,
                   AutoIndexUpgrader, FigureAligner, SphinxDomains, DoctreeReadEvent,
-                  UIDTransform, TranslatedAttributesCleaner]
+                  UIDTransform, TranslatedAttributesCleaner, TitleTranslator]
         for transform in unused:
             if transform in self.transforms:
                 self.transforms.remove(transform)
