@@ -14,7 +14,6 @@ from typing import Any, TypeVar
 
 from docutils import nodes
 from docutils.io import StringInput
-from docutils.utils import relative_path
 
 from sphinx import addnodes
 from sphinx.domains.std import make_glossary_term, split_term_classifiers
@@ -30,6 +29,7 @@ from sphinx.util.nodes import (
 if False:
     # For type annotation
     from typing import Dict, List, Tuple, Type  # NOQA
+    from gettext import NullTranslations  # NOQA
     from sphinx.application import Sphinx  # NOQA
     from sphinx.config import Config  # NOQA
 
@@ -90,18 +90,11 @@ class Locale(SphinxTransform):
         settings, source = self.document.settings, self.document['source']
         msgstr = ''
 
-        # XXX check if this is reliable
-        assert source.startswith(self.env.srcdir)
-        docname = path.splitext(relative_path(path.join(self.env.srcdir, 'dummy'),
-                                              source))[0]
-        textdomain = docname_to_domain(docname, self.config.gettext_compact)
-
-        # fetch translations
-        dirs = [path.join(self.env.srcdir, directory)
-                for directory in self.config.locale_dirs]
-        catalog, has_catalog = init_locale(dirs, self.config.language, textdomain)
-        if not has_catalog:
-            return
+        try:
+            docname = self.env.project.path2doc(source)
+            catalog = self.get_message_catalog()
+        except IOError:
+            return  # no message catalog for this document
 
         # phase1: replace reference ids with translated names
         for node, msg in extract_messages(self.document):
@@ -465,6 +458,20 @@ class Locale(SphinxTransform):
         # remove translated attribute that is used for avoiding double translation.
         for translated in self.document.traverse(NodeMatcher(translated=Any)):  # type: nodes.Element  # NOQA
             translated.delattr('translated')
+
+    def get_message_catalog(self, docname):
+        # type: (str) -> NullTranslations
+        """Search message catalog for given document.
+
+        Raises ``IOError`` if not found.
+        """
+        locale_dirs = [path.join(self.env.srcdir, d) for d in self.config.locale_dirs]
+        domain = docname_to_domain(docname, self.config.gettext_compact)
+        catalog, has_catalog = init_locale(locale_dirs, self.config.language, domain)
+        if has_catalog:
+            return catalog
+        else:
+            raise IOError('message catalog not found')
 
 
 class RemoveTranslatableInline(SphinxTransform):
