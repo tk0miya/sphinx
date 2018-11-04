@@ -24,9 +24,13 @@
 """
 
 import functools
+import os
+import pickle
 import posixpath
 import sys
 import time
+import warnings
+from hashlib import sha1
 from os import path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -37,6 +41,7 @@ import sphinx
 from sphinx.builders.html import INVENTORY_FILENAME
 from sphinx.locale import _, __
 from sphinx.util import requests, logging
+from sphinx.util.osutil import ensuredir
 from sphinx.util.inventory import InventoryFile
 
 if False:
@@ -50,17 +55,143 @@ if False:
 logger = logging.getLogger(__name__)
 
 
+class InventoryCacheFile:
+    def __init__(self, doctreedir, uri):
+        # type: (str, str) -> None
+        filename = sha1(uri.encode()).hexdigest() + '.inv'
+        self.path = path.join(doctreedir, 'intersphinx', filename)
+
+    def available(self, ttl=0):
+        # type: (int) -> bool
+        if not path.exists(self.path):  # not found
+            return False
+        elif not os.access(self.path, os.R_OK):  # can't read
+            return False
+        elif path.getmtime(self.path) < time.time() + ttl:  # expired
+            return False
+        else:
+            return True
+
+    def open(self, mode='rb'):
+        # type: (unicode) -> IO[bytes]
+        if 'w' in mode:
+            ensuredir(path.dirname(self.path))
+
+        return open(self.path, mode)
+
+
+class InventoryFetcher:
+    """Inventory fetcher"""
+
+    def __init__(self, env):
+        # type: (BuildEnvironment) -> None
+        self.srcdir = env.srcdir
+        self.doctreedir = env.doctreedir
+        self.config = env.config
+
+    def fetch(self):
+        # type: () -> None
+        for key, (name, (uri, invs)) in self.config.intersphinx_mapping.items():
+            self.fetch_inventory(uri, invs)
+
+    def fetch_inventory(self, uri, invs):
+        # type: (unicode, List[unicode]) -> None
+        try:
+            failures = []
+            for inv in invs:
+                try:
+                    logger.info('loading intersphinx inventory from %s...', _get_safe_url(inv))
+                    if not inv:
+                        inv = posixpath.join(uri, INVENTORY_FILENAME)
+
+                    if '://' in inv:
+                        return self.fetch_remote_inventory(uri, inv)
+                    else:
+                        return self.fetch_local_inventory(uri, inv)
+                except ValueError as exc:
+                    msg = __('unknown or unsupported inventory version: %r')
+                    failures.append([msg, exc])
+                except Exception as exc:
+                    msg = __('intersphinx inventory %r not fetchable due to %s: %s')
+                    failures.append([msg, inv, exc.__class__, exc])
+        finally:
+            if len(failures) == len(invs):
+                logger.warning(__("failed to reach any of the inventories "
+                                  "with the following issues:"))
+                for fail in failures:
+                    logger.warning(*fail)
+            else:
+                logger.info(__("encountered some issues with some of the inventories,"
+                               " but they had working alternatives:"))
+                for fail in failures:
+                    logger.info(*fail)
+
+    def fetch_local_inventory(self, uri, inv):
+        # type: (str, str) -> None
+        with open(path.join(self.srcdir, inv), 'rb') as f:
+            # try to read the inventory file
+            InventoryFile(f, uri, path.join)
+
+    def fetch_remote_inventory(self, uri, inv):
+        # type: (str, str) -> Inventory
+        cache = InventoryCacheFile(self.doctreedir, inv)
+
+        if not cache.available():
+            r = requests.get(inv, config=self.config, timeout=self.config.intersphinx_timeout)
+            r.raise_for_status()
+
+            uri = _strip_basic_auth(uri)
+            if inv != r.url:  # redirected
+                logger.info('intersphinx inventory has moved: %s -> %s', inv, r.url)
+
+                if uri in (inv, path.dirname(inv), path.dirname(inv) + '/'):
+                    uri = path.dirname(r.url)
+
+            # try to read the inventory file
+            InventoryFile.loads(r.text, uri, posixpath.join)
+
+            with cache.open(mode='wb') as cf:
+                pickle.dump({'uri': uri, 'body': r.text}, cf)
+
+
 class InventoryAdapter:
     """Inventory adapter for environment"""
 
     def __init__(self, env):
         # type: (BuildEnvironment) -> None
         self.env = env
+        self.config = env.config
 
-        if not hasattr(env, 'intersphinx_cache'):
-            self.env.intersphinx_cache = {}  # type: ignore
-            self.env.intersphinx_inventory = {}  # type: ignore
-            self.env.intersphinx_named_inventory = {}  # type: ignore
+    def read(self):
+        for key, (name, (uri, invs)) in self.config.intersphinx_mapping.items():
+            pass
+
+    def read_local_inventory(self, uri, inv):
+        # type: (str, str) -> Inventory
+        with open(path.join(self.env.srcdir, inv), 'rb') as f:
+            return InventoryFile(f, uri, path.join)
+
+    def read_remote_inventory(self, uri, inv):
+        # type: (str, str) -> Inventory
+        cache = InventoryCacheFile(self.env.doctreedir, inv)
+
+        if not cache.available():
+            f = _read_from_url(inv, config=self.config)
+
+            uri = _strip_basic_auth(uri)
+            newuri = f.url  # type: ignore
+            if inv != newuri:
+                logger.info('intersphinx inventory has moved: %s -> %s', inv, newuri)
+
+                if uri in (inv, path.dirname(inv), path.dirname(inv) + '/'):
+                    uri = path.dirname(newuri)
+
+            with cache.open(mode='wb') as cf:
+                pickle.dump({'uri': uri, 'body': f.read()}, cf)
+
+        with cache.open() as f:
+            data = pickle.load(f)
+            return InventoryFile.loads(data['body'], data['uri'], posixpath.join)
 
     @property
     def cache(self):

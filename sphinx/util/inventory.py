@@ -10,6 +10,7 @@
 import os
 import re
 import zlib
+from io import StringIO
 
 from sphinx.util import logging
 
@@ -99,6 +100,12 @@ class InventoryFile:
             return cls.load_v2(reader, uri, joinfunc)
         else:
             raise ValueError('invalid inventory header: %s' % line)
+
+    @classmethod
+    def loads(cls, text, uri, joinfunc):
+        # type: (unicode, unicode, Callable) -> Inventory
+        stream = StringIO(text)
+        return cls.load(stream, uri, joinfunc)
 
     @classmethod
     def load_v1(cls, stream, uri, join):
