@@ -30,6 +30,7 @@ from sphinx.util.nodes import (
 if False:
     # For type annotation
     from typing import Dict, List, Tuple, Type  # NOQA
+    from gettext import NullTranslations  # NOQA
     from sphinx.application import Sphinx  # NOQA
     from sphinx.config import Config  # NOQA
 
@@ -276,159 +277,11 @@ class Locale(SphinxTransform):
             if not isinstance(patch, unexpected):
                 continue  # skip
 
-            # auto-numbered foot note reference should use original 'ids'.
-            def list_replace_or_append(lst, old, new):
-                # type: (List[N], N, N) -> None
-                if old in lst:
-                    lst[lst.index(old)] = new
-                else:
-                    lst.append(new)
-
-            is_autofootnote_ref = NodeMatcher(nodes.footnote_reference, auto=Any)
-            old_foot_refs = node.traverse(is_autofootnote_ref)  # type: List[nodes.footnote_reference]  # NOQA
-            new_foot_refs = patch.traverse(is_autofootnote_ref)  # type: List[nodes.footnote_reference]  # NOQA
-            if len(old_foot_refs) != len(new_foot_refs):
-                old_foot_ref_rawsources = [ref.rawsource for ref in old_foot_refs]
-                new_foot_ref_rawsources = [ref.rawsource for ref in new_foot_refs]
-                logger.warning(__('inconsistent footnote references in translated message.' +
-                                  ' original: {0}, translated: {1}')
-                               .format(old_foot_ref_rawsources, new_foot_ref_rawsources),
-                               location=node)
-            old_foot_namerefs = {}  # type: Dict[str, List[nodes.footnote_reference]]
-            for r in old_foot_refs:
-                old_foot_namerefs.setdefault(r.get('refname'), []).append(r)
-            for newf in new_foot_refs:
-                refname = newf.get('refname')
-                refs = old_foot_namerefs.get(refname, [])
-                if not refs:
-                    continue
-
-                oldf = refs.pop(0)
-                newf['ids'] = oldf['ids']
-                for id in newf['ids']:
-                    self.document.ids[id] = newf
-
-                if newf['auto'] == 1:
-                    # autofootnote_refs
-                    list_replace_or_append(self.document.autofootnote_refs, oldf, newf)
-                else:
-                    # symbol_footnote_refs
-                    list_replace_or_append(self.document.symbol_footnote_refs, oldf, newf)
-
-                if refname:
-                    footnote_refs = self.document.footnote_refs.setdefault(refname, [])
-                    list_replace_or_append(footnote_refs, oldf, newf)
-
-                    refnames = self.document.refnames.setdefault(refname, [])
-                    list_replace_or_append(refnames, oldf, newf)
-
-            # reference should use new (translated) 'refname'.
-            # * reference target ".. _Python: ..." is not translatable.
-            # * use translated refname for section refname.
-            # * inline reference "`Python <...>`_" has no 'refname'.
-            is_refnamed_ref = NodeMatcher(nodes.reference, refname=Any)
-            old_refs = node.traverse(is_refnamed_ref)  # type: List[nodes.reference]
-            new_refs = patch.traverse(is_refnamed_ref)  # type: List[nodes.reference]
-            if len(old_refs) != len(new_refs):
-                old_ref_rawsources = [ref.rawsource for ref in old_refs]
-                new_ref_rawsources = [ref.rawsource for ref in new_refs]
-                logger.warning(__('inconsistent references in translated message.' +
-                                  ' original: {0}, translated: {1}')
-                               .format(old_ref_rawsources, new_ref_rawsources),
-                               location=node)
-            old_ref_names = [r['refname'] for r in old_refs]
-            new_ref_names = [r['refname'] for r in new_refs]
-            orphans = list(set(old_ref_names) - set(new_ref_names))
-            for newr in new_refs:
-                if not self.document.has_name(newr['refname']):
-                    # Maybe refname is translated but target is not translated.
-                    # Note: multiple translated refnames break link ordering.
-                    if orphans:
-                        newr['refname'] = orphans.pop(0)
-                    else:
-                        # orphan refnames is already empty!
-                        # reference number is same in new_refs and old_refs.
-                        pass
-
-                self.document.note_refname(newr)
-
-            # refnamed footnote should use original 'ids'.
-            is_refnamed_footnote_ref = NodeMatcher(nodes.footnote_reference, refname=Any)
-            old_foot_refs = node.traverse(is_refnamed_footnote_ref)
-            new_foot_refs = patch.traverse(is_refnamed_footnote_ref)
-            refname_ids_map = {}  # type: Dict[str, List[str]]
-            if len(old_foot_refs) != len(new_foot_refs):
-                old_foot_ref_rawsources = [ref.rawsource for ref in old_foot_refs]
-                new_foot_ref_rawsources = [ref.rawsource for ref in new_foot_refs]
-                logger.warning(__('inconsistent footnote references in translated message.' +
-                                  ' original: {0}, translated: {1}')
-                               .format(old_foot_ref_rawsources, new_foot_ref_rawsources),
-                               location=node)
-            for oldf in old_foot_refs:
-                refname_ids_map.setdefault(oldf["refname"], []).append(oldf["ids"])
-            for newf in new_foot_refs:
-                refname = newf["refname"]
-                if refname_ids_map.get(refname):
-                    newf["ids"] = refname_ids_map[refname].pop(0)
-
-            # citation should use original 'ids'.
-            is_citation_ref = NodeMatcher(nodes.citation_reference, refname=Any)
-            old_cite_refs = node.traverse(is_citation_ref)  # type: List[nodes.citation_reference]  # NOQA
-            new_cite_refs = patch.traverse(is_citation_ref)  # type: List[nodes.citation_reference]  # NOQA
-            refname_ids_map = {}
-            if len(old_cite_refs) != len(new_cite_refs):
-                old_cite_ref_rawsources = [ref.rawsource for ref in old_cite_refs]
-                new_cite_ref_rawsources = [ref.rawsource for ref in new_cite_refs]
-                logger.warning(__('inconsistent citation references in translated message.' +
-                                  ' original: {0}, translated: {1}')
-                               .format(old_cite_ref_rawsources, new_cite_ref_rawsources),
-                               location=node)
-            for oldc in old_cite_refs:
-                refname_ids_map.setdefault(oldc["refname"], []).append(oldc["ids"])
-            for newc in new_cite_refs:
-                refname = newc["refname"]
-                if refname_ids_map.get(refname):
-                    newc["ids"] = refname_ids_map[refname].pop()
-
-            # Original pending_xref['reftarget'] contain not-translated
-            # target name, new pending_xref must use original one.
-            # This code restricts to change ref-targets in the translation.
-            old_xrefs = node.traverse(addnodes.pending_xref)
-            new_xrefs = patch.traverse(addnodes.pending_xref)
-            xref_reftarget_map = {}
-            if len(old_xrefs) != len(new_xrefs):
-                old_xref_rawsources = [xref.rawsource for xref in old_xrefs]
-                new_xref_rawsources = [xref.rawsource for xref in new_xrefs]
-                logger.warning(__('inconsistent term references in translated message.' +
-                                  ' original: {0}, translated: {1}')
-                               .format(old_xref_rawsources, new_xref_rawsources),
-                               location=node)
-
-            def get_ref_key(node):
-                # type: (addnodes.pending_xref) -> Tuple[str, str, str]
-                case = node["refdomain"], node["reftype"]
-                if case == ('std', 'term'):
-                    return None
-                else:
-                    return (
-                        node["refdomain"],
-                        node["reftype"],
-                        node['reftarget'],)
-
-            for old in old_xrefs:
-                key = get_ref_key(old)
-                if key:
-                    xref_reftarget_map[key] = old.attributes
-            for new in new_xrefs:
-                key = get_ref_key(new)
-                # Copy attributes to keep original node behavior. Especially
-                # copying 'reftarget', 'py:module', 'py:class' are needed.
-                for k, v in xref_reftarget_map.get(key, {}).items():
-                    # Note: This implementation overwrite all attributes.
-                    # if some attributes `k` should not be overwritten,
-                    # you should provide exclude list as:
-                    # `if k not in EXCLUDE_LIST: new[k] = v`
-                    new[k] = v
+            self.transplant_auto_footnote_ref_attributes(node, patch)
+            self.transplant_refnamed_reference_attributes(node, patch)
+            self.transplant_refnamed_footnote_ref_attributes(node, patch)
+            self.transplant_citation_ref_attributes(node, patch)
+            self.transplant_pending_xref_attributes(node, patch)
 
             # update leaves
             for child in patch.children:
@@ -444,6 +297,175 @@ class Locale(SphinxTransform):
 
             node['translated'] = True  # to avoid double translation
 
+        self.translate_index_nodes(catalog)
+        self.cleanup()
+
+    def transplant_auto_footnote_ref_attributes(self, node, patch):
+        # type: (nodes.Element, nodes.Element) -> None
+        """auto-numbered foot note reference should use original 'ids'."""
+        def list_replace_or_append(lst, old, new):
+            # type: (List[N], N, N) -> None
+            if old in lst:
+                lst[lst.index(old)] = new
+            else:
+                lst.append(new)
+
+        is_autofootnote_ref = NodeMatcher(nodes.footnote_reference, auto=Any)
+        old_foot_refs = node.traverse(is_autofootnote_ref)  # type: List[nodes.footnote_reference]  # NOQA
+        new_foot_refs = patch.traverse(is_autofootnote_ref)  # type: List[nodes.footnote_reference]  # NOQA
+        if len(old_foot_refs) != len(new_foot_refs):
+            old_foot_ref_rawsources = [ref.rawsource for ref in old_foot_refs]
+            new_foot_ref_rawsources = [ref.rawsource for ref in new_foot_refs]
+            logger.warning(__('inconsistent footnote references in translated message.' +
+                              ' original: {0}, translated: {1}')
+                           .format(old_foot_ref_rawsources, new_foot_ref_rawsources),
+                           location=node)
+        old_foot_namerefs = {}  # type: Dict[str, List[nodes.footnote_reference]]
+        for r in old_foot_refs:
+            old_foot_namerefs.setdefault(r.get('refname'), []).append(r)
+        for newf in new_foot_refs:
+            refname = newf.get('refname')
+            refs = old_foot_namerefs.get(refname, [])
+            if not refs:
+                continue
+
+            oldf = refs.pop(0)
+            newf['ids'] = oldf['ids']
+            for id in newf['ids']:
+                self.document.ids[id] = newf
+
+            if newf['auto'] == 1:
+                # autofootnote_refs
+                list_replace_or_append(self.document.autofootnote_refs, oldf, newf)
+            else:
+                # symbol_footnote_refs
+                list_replace_or_append(self.document.symbol_footnote_refs, oldf, newf)
+
+            if refname:
+                footnote_refs = self.document.footnote_refs.setdefault(refname, [])
+                list_replace_or_append(footnote_refs, oldf, newf)
+
+                refnames = self.document.refnames.setdefault(refname, [])
+                list_replace_or_append(refnames, oldf, newf)
+
+    def transplant_refnamed_reference_attributes(self, node, patch):
+        # type: (nodes.Element, nodes.Element) -> None
+        """reference should use new (translated) 'refname'.
+
+        * reference target ".. _Python: ..." is not translatable.
+        * use translated refname for section refname.
+        * inline reference "`Python <...>`_" has no 'refname'.
+        """
+        is_refnamed_ref = NodeMatcher(nodes.reference, refname=Any)
+        old_refs = node.traverse(is_refnamed_ref)  # type: List[nodes.reference]
+        new_refs = patch.traverse(is_refnamed_ref)  # type: List[nodes.reference]
+        if len(old_refs) != len(new_refs):
+            old_ref_rawsources = [ref.rawsource for ref in old_refs]
+            new_ref_rawsources = [ref.rawsource for ref in new_refs]
+            logger.warning(__('inconsistent references in translated message.' +
+                              ' original: {0}, translated: {1}')
+                           .format(old_ref_rawsources, new_ref_rawsources),
+                           location=node)
+        old_ref_names = [r['refname'] for r in old_refs]
+        new_ref_names = [r['refname'] for r in new_refs]
+        orphans = list(set(old_ref_names) - set(new_ref_names))
+        for newr in new_refs:
+            if not self.document.has_name(newr['refname']):
+                # Maybe refname is translated but target is not translated.
+                # Note: multiple translated refnames break link ordering.
+                if orphans:
+                    newr['refname'] = orphans.pop(0)
+                else:
+                    # orphan refnames is already empty!
+                    # reference number is same in new_refs and old_refs.
+                    pass
+
+            self.document.note_refname(newr)
+
+    def transplant_refnamed_footnote_ref_attributes(self, node, patch):
+        # type: (nodes.Element, nodes.Element) -> None
+        """refnamed footnote should use original 'ids'."""
+        is_refnamed_footnote_ref = NodeMatcher(nodes.footnote_reference, refname=Any)
+        old_foot_refs = node.traverse(is_refnamed_footnote_ref)  # type: List[nodes.footnote_reference]  # NOQA
+        new_foot_refs = patch.traverse(is_refnamed_footnote_ref)  # type: List[nodes.footnote_reference]  # NOQA
+        refname_ids_map = {}  # type: Dict[str, List[str]]
+        if len(old_foot_refs) != len(new_foot_refs):
+            old_foot_ref_rawsources = [ref.rawsource for ref in old_foot_refs]
+            new_foot_ref_rawsources = [ref.rawsource for ref in new_foot_refs]
+            logger.warning(__('inconsistent footnote references in translated message.' +
+                              ' original: {0}, translated: {1}')
+                           .format(old_foot_ref_rawsources, new_foot_ref_rawsources),
+                           location=node)
+        for oldf in old_foot_refs:
+            refname_ids_map.setdefault(oldf["refname"], []).append(oldf["ids"])
+        for newf in new_foot_refs:
+            refname = newf["refname"]
+            if refname_ids_map.get(refname):
+                newf["ids"] = refname_ids_map[refname].pop(0)
+
+    def transplant_citation_ref_attributes(self, node, patch):
+        # type: (nodes.Element, nodes.Element) -> None
+        """citation should use original 'ids'."""
+        is_citation_ref = NodeMatcher(nodes.citation_reference, refname=Any)
+        old_cite_refs = node.traverse(is_citation_ref)  # type: List[nodes.citation_reference]
+        new_cite_refs = patch.traverse(is_citation_ref)  # type: List[nodes.citation_reference]
+        refname_ids_map = {}  # type: Dict[str, List[str]]
+        if len(old_cite_refs) != len(new_cite_refs):
+            old_cite_ref_rawsources = [ref.rawsource for ref in old_cite_refs]
+            new_cite_ref_rawsources = [ref.rawsource for ref in new_cite_refs]
+            logger.warning(__('inconsistent citation references in translated message.'
+                              ' original: {0}, translated: {1}')
+                           .format(old_cite_ref_rawsources, new_cite_ref_rawsources),
+                           location=node)
+        for oldc in old_cite_refs:
+            refname_ids_map.setdefault(oldc["refname"], []).append(oldc["ids"])
+        for newc in new_cite_refs:
+            refname = newc["refname"]
+            if refname_ids_map.get(refname):
+                newc["ids"] = refname_ids_map[refname].pop()
+
+    def transplant_pending_xref_attributes(self, node, patch):
+        # type: (nodes.Element, nodes.Element) -> None
+        """Original pending_xref['reftarget'] contain not-translated
+        target name, new pending_xref must use original one.
+        This code restricts to change ref-targets in the translation.
+        """
+        old_xrefs = node.traverse(addnodes.pending_xref)
+        new_xrefs = patch.traverse(addnodes.pending_xref)
+        xref_reftarget_map = {}
+        if len(old_xrefs) != len(new_xrefs):
+            old_xref_rawsources = [xref.rawsource for xref in old_xrefs]
+            new_xref_rawsources = [xref.rawsource for xref in new_xrefs]
+            logger.warning(__('inconsistent term references in translated message.' +
+                              ' original: {0}, translated: {1}')
+                           .format(old_xref_rawsources, new_xref_rawsources),
+                           location=node)
+
+        def get_ref_key(node):
+            # type: (addnodes.pending_xref) -> Tuple[str, str, str]
+            case = node["refdomain"], node["reftype"]
+            if case == ('std', 'term'):
+                return None
+            else:
+                return (node["refdomain"], node["reftype"], node['reftarget'])
+
+        for old in old_xrefs:
+            key = get_ref_key(old)
+            if key:
+                xref_reftarget_map[key] = old.attributes
+        for new in new_xrefs:
+            key = get_ref_key(new)
+            # Copy attributes to keep original node behavior. Especially
+            # copying 'reftarget', 'py:module', 'py:class' are needed.
+            for k, v in xref_reftarget_map.get(key, {}).items():
+                # Note: This implementation overwrite all attributes.
+                # if some attributes `k` should not be overwritten,
+                # you should provide exclude list as:
+                # `if k not in EXCLUDE_LIST: new[k] = v`
+                new[k] = v
+
+    def translate_index_nodes(self, catalog):
+        # type: (NullTranslations) -> None
         if 'index' in self.config.gettext_additional_targets:
             # Extract and translate messages for index entries.
             for node, entries in traverse_translatable_index(self.document):
@@ -462,8 +484,11 @@ class Locale(SphinxTransform):
                 node['raw_entries'] = entries
                 node['entries'] = new_entries
 
-        # remove translated attribute that is used for avoiding double translation.
-        for translated in self.document.traverse(NodeMatcher(translated=Any)):  # type: nodes.Element  # NOQA
+    def cleanup(self):
+        # type: () -> None
+        """Remove ``translated`` attribute from translated nodes"""
+        matcher = NodeMatcher(translated=Any)
+        for translated in self.document.traverse(matcher):  # type: nodes.Element
             translated.delattr('translated')
 
 
