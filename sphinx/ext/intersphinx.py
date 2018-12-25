@@ -73,7 +73,7 @@ class InventoryCacheFile:
             return True
 
     def open(self, mode='rb'):
-        # type: (unicode) -> IO[bytes]
+        # type: (str) -> IO[bytes]
         if 'w' in mode:
             ensuredir(path.dirname(self.path))
 
@@ -95,7 +95,7 @@ class InventoryFetcher:
             self.fetch_inventory(uri, invs)
 
     def fetch_inventory(self, uri, invs):
-        # type: (unicode, List[unicode]) -> None
+        # type: (str, List[str]) -> None
         try:
             failures = []
             for inv in invs:

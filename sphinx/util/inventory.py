@@ -103,7 +103,7 @@ class InventoryFile:
 
     @classmethod
     def loads(cls, text, uri, joinfunc):
-        # type: (unicode, unicode, Callable) -> Inventory
+        # type: (str, str, Callable) -> Inventory
         stream = StringIO(text)
         return cls.load(stream, uri, joinfunc)
 
