@@ -678,8 +678,8 @@ class progress_message:
 
 
 class percentage_progress_message(progress_message):
-    def __init__(self, message, total, verbosity=True):
-        # type: (str, int, bool) -> None
+    def __init__(self, message, total, verbosity=0):
+        # type: (str, int, int) -> None
         self.message = message
         self.step = 0
         self.total = total
