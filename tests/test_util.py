@@ -19,7 +19,8 @@ from sphinx.errors import ExtensionError, PycodeError
 from sphinx.testing.util import strip_escseq
 from sphinx.util import (
     SkipProgressMessage, display_chunk, encode_uri, ensuredir, get_module_source,
-    import_object, parselinenos, progress_message, status_iterator, xmlname_checker
+    import_object, parselinenos, percentage_progress_message, progress_message,
+    status_iterator, xmlname_checker
 )
 from sphinx.util import logging
 
@@ -179,6 +180,21 @@ def test_progress_message(app, status, warning):
     func()
     output = strip_escseq(status.getvalue())
     assert 'testing... in func done\n' in output
+
+
+def test_percentage_progress_message(app, status, warning):
+    logging.setup(app, status, warning)
+
+    with percentage_progress_message('testing', 3) as p:
+        p.report('blah')
+        p.report('blah')
+        p.report('blah')
+
+    output = strip_escseq(status.getvalue())
+    assert 'testing... [  0%] \n' in output
+    assert 'testing... [ 33%] blah\n' in output
+    assert 'testing... [ 67%] blah\n' in output
+    assert 'testing... [100%] blah\n' in output
 
 
 def test_xmlname_check():

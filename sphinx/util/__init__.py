@@ -677,6 +677,34 @@ class progress_message:
         return wrapper
 
 
+class percentage_progress_message(progress_message):
+    def __init__(self, message, total, verbosity=True):
+        # type: (str, int, bool) -> None
+        self.message = message
+        self.step = 0
+        self.total = total
+        self.verbosity = verbosity
+
+    def __enter__(self):
+        # type: () -> percentage_progress_message
+        self.report('', step=0)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # type: (Type[Exception], Exception, Any) -> bool
+        return False
+
+    def report(self, name, step=1, color="darkgreen"):
+        # type: (str, int, str) -> None
+        self.step += step
+        percentage = round(self.step / self.total * 100)
+        message = "%s... [%3d%%] %s" % (bold(self.message), percentage, name)
+        if self.verbosity:
+            logger.info(message)
+        else:
+            logger.info(term_width_line(message), nonl=True)
+
+
 def epoch_to_rfc1123(epoch: float) -> str:
     """Convert datetime format epoch to RFC1123."""
     from babel.dates import format_datetime
