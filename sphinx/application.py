@@ -18,6 +18,7 @@ from collections import deque
 from inspect import isclass
 from io import StringIO
 from os import path
+from typing import Tuple, cast
 
 from docutils.parsers.rst import Directive, roles
 from pygments.lexer import Lexer
@@ -43,12 +44,12 @@ from sphinx.util.console import bold  # type: ignore
 from sphinx.util.docutils import directive_helper
 from sphinx.util.i18n import CatalogRepository
 from sphinx.util.logging import prefixed_warnings
-from sphinx.util.osutil import abspath, ensuredir, relpath
+from sphinx.util.osutil import SEP, abspath, ensuredir, relpath
 from sphinx.util.tags import Tags
 
 if False:
     # For type annotation
-    from typing import Any, Callable, Dict, IO, Iterable, Iterator, List, Tuple, Type, Union  # NOQA
+    from typing import Any, Callable, Dict, Generator, IO, Iterable, Iterator, List, Type, Union  # NOQA
     from docutils import nodes  # NOQA
     from docutils.parsers import Parser  # NOQA
     from docutils.transforms import Transform  # NOQA
@@ -379,6 +380,21 @@ class Sphinx:
         else:
             self.events.emit('build-finished', None)
         self.builder.cleanup()
+
+    def filenames_to_docnames(self, filenames):
+        # type: (List[str]) -> Generator[str, None, None]
+        """Only rebuild as much as needed for changes in the *filenames*."""
+        for filename in filenames:
+            filename = path.normpath(path.abspath(filename))
+            if not filename.startswith(self.srcdir):
+                logger.warning(__('file %r given on command line is not under the '
+                                  'source directory, ignoring'), filename)
+            elif not path.isfile(filename):
+                logger.warning(__('file %r given on command line does not exist, ignoring'),
+                               filename)
+            else:
+                root, ext = path.splitext(filename)
+                return relpath(root, self.srcdir)
 
     # ---- general extensibility interface -------------------------------------
 
