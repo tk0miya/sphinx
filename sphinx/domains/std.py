@@ -9,7 +9,6 @@
 """
 
 import re
-import unicodedata
 import warnings
 from copy import copy
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Type, Union
@@ -22,8 +21,11 @@ from docutils.statemachine import StringList
 
 from sphinx import addnodes
 from sphinx.addnodes import desc_signature, pending_xref
-from sphinx.deprecation import RemovedInSphinx30Warning, RemovedInSphinx40Warning
+from sphinx.deprecation import (
+    RemovedInSphinx30Warning, RemovedInSphinx40Warning, deprecated_alias
+)
 from sphinx.directives import ObjectDescription
+from sphinx.directives.glossary import Glossary
 from sphinx.domains import Domain, ObjType
 from sphinx.errors import NoUri
 from sphinx.locale import _, __
@@ -233,165 +235,6 @@ class OptionXRefRole(XRefRole):
                      title: str, target: str) -> Tuple[str, str]:
         refnode['std:program'] = env.ref_context.get('std:program')
         return title, target
-
-
-def split_term_classifiers(line: str) -> List[Optional[str]]:
-    # split line into a term and classifiers. if no classifier, None is used..
-    parts = re.split(' +: +', line) + [None]
-    return parts
-
-
-def make_glossary_term(env: "BuildEnvironment", textnodes: Iterable[Node], index_key: str,
-                       source: str, lineno: int, new_id: str = None) -> nodes.term:
-    # get a text-only representation of the term and register it
-    # as a cross-reference target
-    term = nodes.term('', '', *textnodes)
-    term.source = source
-    term.line = lineno
-
-    gloss_entries = env.temp_data.setdefault('gloss_entries', set())
-    termtext = term.astext()
-    if new_id is None:
-        new_id = nodes.make_id('term-' + termtext)
-        if new_id == 'term':
-            # the term is not good for node_id.  Generate it by sequence number instead.
-            new_id = 'term-' + str(len(gloss_entries))
-    if new_id in gloss_entries:
-        new_id = 'term-' + str(len(gloss_entries))
-    gloss_entries.add(new_id)
-
-    std = cast(StandardDomain, env.get_domain('std'))
-    std.add_object('term', termtext.lower(), env.docname, new_id)
-
-    # add an index entry too
-    indexnode = addnodes.index()
-    indexnode['entries'] = [('single', termtext, new_id, 'main', index_key)]
-    indexnode.source, indexnode.line = term.source, term.line
-    term.append(indexnode)
-    term['ids'].append(new_id)
-    term['names'].append(new_id)
-
-    return term
-
-
-class Glossary(SphinxDirective):
-    """
-    Directive to create a glossary with cross-reference targets for :term:
-    roles.
-    """
-
-    has_content = True
-    required_arguments = 0
-    optional_arguments = 0
-    final_argument_whitespace = False
-    option_spec = {
-        'sorted': directives.flag,
-    }
-
-    def run(self) -> List[Node]:
-        node = addnodes.glossary()
-        node.document = self.state.document
-
-        # This directive implements a custom format of the reST definition list
-        # that allows multiple lines of terms before the definition.  This is
-        # easy to parse since we know that the contents of the glossary *must
-        # be* a definition list.
-
-        # first, collect single entries
-        entries = []  # type: List[Tuple[List[Tuple[str, str, int]], StringList]]
-        in_definition = True
-        in_comment = False
-        was_empty = True
-        messages = []  # type: List[nodes.Node]
-        for line, (source, lineno) in zip(self.content, self.content.items):
-            # empty line -> add to last definition
-            if not line:
-                if in_definition and entries:
-                    entries[-1][1].append('', source, lineno)
-                was_empty = True
-                continue
-            # unindented line -> a term
-            if line and not line[0].isspace():
-                # enable comments
-                if line.startswith('.. '):
-                    in_comment = True
-                    continue
-                else:
-                    in_comment = False
-
-                # first term of definition
-                if in_definition:
-                    if not was_empty:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary term must be preceded by empty line'),
-                            source=source, line=lineno))
-                    entries.append(([(line, source, lineno)], StringList()))
-                    in_definition = False
-                # second term and following
-                else:
-                    if was_empty:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary terms must not be separated by empty lines'),
-                            source=source, line=lineno))
-                    if entries:
-                        entries[-1][0].append((line, source, lineno))
-                    else:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary seems to be misformatted, check indentation'),
-                            source=source, line=lineno))
-            elif in_comment:
-                pass
-            else:
-                if not in_definition:
-                    # first line of definition, determines indentation
-                    in_definition = True
-                    indent_len = len(line) - len(line.lstrip())
-                if entries:
-                    entries[-1][1].append(line[indent_len:], source, lineno)
-                else:
-                    messages.append(self.state.reporter.warning(
-                        _('glossary seems to be misformatted, check indentation'),
-                        source=source, line=lineno))
-            was_empty = False
-
-        # now, parse all the entries into a big definition list
-        items = []
-        for terms, definition in entries:
-            termtexts = []          # type: List[str]
-            termnodes = []          # type: List[nodes.Node]
-            system_messages = []    # type: List[nodes.Node]
-            for line, source, lineno in terms:
-                parts = split_term_classifiers(line)
-                # parse the term with inline markup
-                # classifiers (parts[1:]) will not be shown on doctree
-                textnodes, sysmsg = self.state.inline_text(parts[0], lineno)
-
-                # use first classifier as a index key
-                term = make_glossary_term(self.env, textnodes, parts[1], source, lineno)
-                term.rawsource = line
-                system_messages.extend(sysmsg)
-                termtexts.append(term.astext())
-                termnodes.append(term)
-
-            termnodes.extend(system_messages)
-
-            defnode = nodes.definition()
-            if definition:
-                self.state.nested_parse(definition, definition.items[0][1],
-                                        defnode)
-            termnodes.append(defnode)
-            items.append((termtexts,
-                          nodes.definition_list_item('', *termnodes)))
-
-        if 'sorted' in self.options:
-            items.sort(key=lambda x:
-                       unicodedata.normalize('NFD', x[0][0].lower()))
-
-        dlist = nodes.definition_list()
-        dlist['classes'].append('glossary')
-        dlist.extend(item[1] for item in items)
-        node += dlist
-        return messages + [node]
 
 
 def token_xrefs(text: str) -> List[Node]:
@@ -982,6 +825,17 @@ class StandardDomain(Domain):
     def note_labels(self, env: "BuildEnvironment", docname: str, document: nodes.document) -> None:  # NOQA
         warnings.warn('StandardDomain.note_labels() is deprecated.',
                       RemovedInSphinx40Warning)
+
+
+from sphinx.directives.glossary import make_glossary_term, split_term_classifiers  # NOQA
+
+deprecated_alias('sphinx.domains.std',
+                 {
+                     'Glossary': Glossary,
+                     'make_glossary_term': make_glossary_term,
+                     'split_term_classifiers': split_term_classifiers,
+                 },
+                 RemovedInSphinx40Warning)
 
 
 def setup(app: "Sphinx") -> Dict[str, Any]:

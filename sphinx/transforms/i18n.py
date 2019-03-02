@@ -17,7 +17,7 @@ from docutils.io import StringInput
 from docutils.utils import relative_path
 
 from sphinx import addnodes
-from sphinx.domains.std import make_glossary_term, split_term_classifiers
+from sphinx.directives.glossary import make_glossary_term, split_term_classifiers
 from sphinx.locale import __, init as init_locale
 from sphinx.transforms import SphinxTransform
 from sphinx.util import split_index_msg, logging
