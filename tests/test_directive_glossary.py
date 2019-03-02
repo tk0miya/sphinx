@@ -73,3 +73,70 @@ def test_glossary(app, status, warning):
     assert ('term2', 'term2', 'term', 'index', 'term-term2', -1) in objects
     assert ('term3', 'term3', 'term', 'index', 'term-term3', -1) in objects
     assert ('term4', 'term4', 'term', 'index', 'term-term4', -1) in objects
+
+
+@pytest.mark.sphinx(testroot='basic')
+def test_glossary_warning(app, status, warning):
+    # empty line between terms
+    text = ('.. glossary::\n'
+            '\n'
+            '   term1\n'
+            '\n'
+            '   term2\n')
+    parse(app, 'case1', text)
+    assert ('case1.rst:4: WARNING: glossary terms must not be separated by empty lines'
+            in warning.getvalue())
+
+    # glossary starts with indented item
+    text = ('.. glossary::\n'
+            '\n'
+            '       description\n'
+            '   term\n')
+    parse(app, 'case2', text)
+    assert ('case2.rst:3: WARNING: glossary term must be preceded by empty line'
+            in warning.getvalue())
+
+
+@pytest.mark.sphinx(testroot='basic')
+def test_glossary_comment(app, status, warning):
+    # empty line between terms
+    text = ('.. glossary::\n'
+            '\n'
+            '   term1\n'
+            '       description\n'
+            '   .. term2\n'
+            '       description\n'
+            '       .. description\n')
+    doctree = parse(app, 'index', text)
+    assert_node(doctree, [nodes.document, addnodes.glossary, nodes.definition_list,
+                          nodes.definition_list_item])
+    assert_node(doctree[0][0][0], ([nodes.term, ("term1",
+                                                 addnodes.index)],
+                                   [nodes.definition, nodes.paragraph, ("description\n"
+                                                                        "description\n"
+                                                                        ".. description")]))
+
+
+@pytest.mark.sphinx(testroot='basic')
+def test_glossary_sorted(app, status, warning):
+    # empty line between terms
+    text = ('.. glossary::\n'
+            '   :sorted:\n'
+            '\n'
+            '   term3\n'
+            '       description\n'
+            '   term2\n'
+            '   term1\n'
+            '       description\n')
+    doctree = parse(app, 'index', text)
+    assert_node(doctree, [nodes.document, addnodes.glossary, nodes.definition_list,
+                          (nodes.definition_list_item,
+                           nodes.definition_list_item)])
+    assert_node(doctree[0][0][0], ([nodes.term, ("term2",
+                                                 addnodes.index)],
+                                   [nodes.term, ("term1",
+                                                 addnodes.index)],
+                                   [nodes.definition, nodes.paragraph, "description"]))
+    assert_node(doctree[0][0][1], ([nodes.term, ("term3",
+                                                 addnodes.index)],
+                                   [nodes.definition, nodes.paragraph, "description"]))
