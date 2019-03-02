@@ -80,20 +80,29 @@ class Glossary(SphinxDirective):
 
     def run(self):
         # type: () -> List[nodes.Node]
+        entries, messages = self.parse(self.content)
+        items = self.build(entries)
+
         node = addnodes.glossary()
         node.document = self.state.document
+        node += nodes.definition_list(classes=['glossary'])
+        node[0].extend(items)
+        return messages + [node]
 
-        # This directive implements a custom format of the reST definition list
-        # that allows multiple lines of terms before the definition.  This is
-        # easy to parse since we know that the contents of the glossary *must
-        # be* a definition list.
+    def parse(self, content):
+        # type: (StringList) -> Tuple[List[Tuple[Tuple[str, str, int]], StringList], List[nodes.Node]]  # NOQA
+        """Parse definition list on content.
 
-        # first, collect single entries
+        This directive implements a custom format of the reST definition list
+        that allows multiple lines of terms before the definition.  This is
+        easy to parse since we know that the contents of the glossary *must
+        be* a definition list.
+        """
         entries = []  # type: List[Tuple[List[Tuple[str, str, int]], StringList]]
         in_definition = True
         was_empty = True
         messages = []  # type: List[nodes.Node]
-        for line, (source, lineno) in zip(self.content, self.content.items):
+        for source, lineno, line in content.xitems():
             # empty line -> add to last definition
             if not line:
                 if in_definition and entries:
@@ -138,7 +147,11 @@ class Glossary(SphinxDirective):
                         source=source, line=lineno))
             was_empty = False
 
-        # now, parse all the entries into a big definition list
+        return entries, messages
+
+    def build(self, entries):
+        # type: (List[Tuple[List[Tuple[str, str, int]], StringList]]) -> List[nodes.Node]
+        """Parse all the entries and build a definition list."""
         items = []
         for terms, definition in entries:
             termtexts = []          # type: List[str]
@@ -171,8 +184,4 @@ class Glossary(SphinxDirective):
             items.sort(key=lambda x:
                        unicodedata.normalize('NFD', x[0][0].lower()))
 
-        dlist = nodes.definition_list()
-        dlist['classes'].append('glossary')
-        dlist.extend(item[1] for item in items)
-        node += dlist
-        return messages + [node]
+        return [item[1] for item in items]
