@@ -36,6 +36,21 @@ The following is a list of deprecated interfaces.
      - 4.0
      - ``sphinx.domains.index.IndexDirective``
 
+   * - ``sphinx.domains.std.Glossary``
+     - 2.4
+     - 4.0
+     - ``sphinx.directives.glossary.Glossary``
+
+   * - ``sphinx.domains.std.make_glossary_term()``
+     - 2.4
+     - 4.0
+     - ``sphinx.directives.glossary.make_glossary_term()``
+
+   * - ``sphinx.domains.std.split_term_classifiers()``
+     - 2.4
+     - 4.0
+     - ``sphinx.directives.glossary.split_term_classifiers()``
+
    * - ``sphinx.environment.temp_data['gloss_entries']``
      - 2.4
      - 4.0

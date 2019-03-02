@@ -19,7 +19,7 @@ from docutils.utils import relative_path
 
 from sphinx import addnodes
 from sphinx.config import Config
-from sphinx.domains.std import make_glossary_term, split_term_classifiers
+from sphinx.domains.glossary import make_glossary_term, split_term_classifiers
 from sphinx.locale import __, init as init_locale
 from sphinx.transforms import SphinxTransform
 from sphinx.util import split_index_msg, logging, get_filetype
@@ -203,11 +203,12 @@ class Locale(SphinxTransform):
             # glossary terms update refid
             if isinstance(node, nodes.term):
                 for _id in node['ids']:
-                    parts = split_term_classifiers(msgstr)
-                    patch = publish_msgstr(self.app, parts[0], source,
+                    term, classifiers = split_term_classifiers(msgstr)
+                    classifier = classifiers[0] if classifiers else None
+                    patch = publish_msgstr(self.app, term, source,
                                            node.line, self.config, settings)
-                    patch = make_glossary_term(self.env, patch, parts[1],
-                                               source, node.line, _id,
+                    patch = make_glossary_term(self.env, patch, classifier,
+                                               source, node.line, msgstr, _id,
                                                self.document)
                     processed = True
 

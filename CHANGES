@@ -12,6 +12,9 @@ Deprecated
 
 * The ``decode`` argument of ``sphinx.pycode.ModuleAnalyzer()``
 * ``sphinx.directives.other.Index``
+* ``sphinx.domains.std.Glossary``
+* ``sphinx.domains.std.make_glossary_term()``
+* ``sphinx.domains.std.split_term_classifiers()``
 * ``sphinx.environment.temp_data['gloss_entries']``
 * ``sphinx.environment.BuildEnvironment.indexentries``
 * ``sphinx.environment.collectors.indexentries.IndexEntriesCollector``

@@ -9,7 +9,6 @@
 """
 
 import re
-import unicodedata
 import warnings
 from copy import copy
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
@@ -17,14 +16,16 @@ from typing import cast
 
 from docutils import nodes
 from docutils.nodes import Element, Node, system_message
-from docutils.parsers.rst import Directive, directives
-from docutils.statemachine import StringList
+from docutils.parsers.rst import Directive
 
 from sphinx import addnodes
 from sphinx.addnodes import desc_signature, pending_xref
-from sphinx.deprecation import RemovedInSphinx30Warning, RemovedInSphinx40Warning
+from sphinx.deprecation import (
+    RemovedInSphinx30Warning, RemovedInSphinx40Warning, deprecated_alias
+)
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
+from sphinx.domains.glossary import Glossary
 from sphinx.errors import NoUri
 from sphinx.locale import _, __
 from sphinx.roles import XRefRole
@@ -283,127 +284,6 @@ def make_glossary_term(env: "BuildEnvironment", textnodes: Iterable[Node], index
     term.append(indexnode)
 
     return term
-
-
-class Glossary(SphinxDirective):
-    """
-    Directive to create a glossary with cross-reference targets for :term:
-    roles.
-    """
-
-    has_content = True
-    required_arguments = 0
-    optional_arguments = 0
-    final_argument_whitespace = False
-    option_spec = {
-        'sorted': directives.flag,
-    }
-
-    def run(self) -> List[Node]:
-        node = addnodes.glossary()
-        node.document = self.state.document
-
-        # This directive implements a custom format of the reST definition list
-        # that allows multiple lines of terms before the definition.  This is
-        # easy to parse since we know that the contents of the glossary *must
-        # be* a definition list.
-
-        # first, collect single entries
-        entries = []  # type: List[Tuple[List[Tuple[str, str, int]], StringList]]
-        in_definition = True
-        in_comment = False
-        was_empty = True
-        messages = []  # type: List[Node]
-        for line, (source, lineno) in zip(self.content, self.content.items):
-            # empty line -> add to last definition
-            if not line:
-                if in_definition and entries:
-                    entries[-1][1].append('', source, lineno)
-                was_empty = True
-                continue
-            # unindented line -> a term
-            if line and not line[0].isspace():
-                # enable comments
-                if line.startswith('.. '):
-                    in_comment = True
-                    continue
-                else:
-                    in_comment = False
-
-                # first term of definition
-                if in_definition:
-                    if not was_empty:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary term must be preceded by empty line'),
-                            source=source, line=lineno))
-                    entries.append(([(line, source, lineno)], StringList()))
-                    in_definition = False
-                # second term and following
-                else:
-                    if was_empty:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary terms must not be separated by empty lines'),
-                            source=source, line=lineno))
-                    if entries:
-                        entries[-1][0].append((line, source, lineno))
-                    else:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary seems to be misformatted, check indentation'),
-                            source=source, line=lineno))
-            elif in_comment:
-                pass
-            else:
-                if not in_definition:
-                    # first line of definition, determines indentation
-                    in_definition = True
-                    indent_len = len(line) - len(line.lstrip())
-                if entries:
-                    entries[-1][1].append(line[indent_len:], source, lineno)
-                else:
-                    messages.append(self.state.reporter.warning(
-                        _('glossary seems to be misformatted, check indentation'),
-                        source=source, line=lineno))
-            was_empty = False
-
-        # now, parse all the entries into a big definition list
-        items = []
-        for terms, definition in entries:
-            termtexts = []          # type: List[str]
-            termnodes = []          # type: List[Node]
-            system_messages = []    # type: List[Node]
-            for line, source, lineno in terms:
-                parts = split_term_classifiers(line)
-                # parse the term with inline markup
-                # classifiers (parts[1:]) will not be shown on doctree
-                textnodes, sysmsg = self.state.inline_text(parts[0], lineno)
-
-                # use first classifier as a index key
-                term = make_glossary_term(self.env, textnodes, parts[1], source, lineno,
-                                          document=self.state.document)
-                term.rawsource = line
-                system_messages.extend(sysmsg)
-                termtexts.append(term.astext())
-                termnodes.append(term)
-
-            termnodes.extend(system_messages)
-
-            defnode = nodes.definition()
-            if definition:
-                self.state.nested_parse(definition, definition.items[0][1],
-                                        defnode)
-            termnodes.append(defnode)
-            items.append((termtexts,
-                          nodes.definition_list_item('', *termnodes)))
-
-        if 'sorted' in self.options:
-            items.sort(key=lambda x:
-                       unicodedata.normalize('NFD', x[0][0].lower()))
-
-        dlist = nodes.definition_list()
-        dlist['classes'].append('glossary')
-        dlist.extend(item[1] for item in items)
-        node += dlist
-        return messages + [node]
 
 
 def token_xrefs(text: str) -> List[Node]:
@@ -992,6 +872,13 @@ class StandardDomain(Domain):
     def note_labels(self, env: "BuildEnvironment", docname: str, document: nodes.document) -> None:  # NOQA
         warnings.warn('StandardDomain.note_labels() is deprecated.',
                       RemovedInSphinx40Warning)
+
+
+deprecated_alias('sphinx.domains.std',
+                 {
+                     'Glossary': Glossary,
+                 },
+                 RemovedInSphinx40Warning)
 
 
 def setup(app: "Sphinx") -> Dict[str, Any]:
