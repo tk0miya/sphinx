@@ -14,14 +14,16 @@ from typing import cast
 
 from docutils import nodes
 from docutils.parsers.rst import directives
+from docutils.parsers.rst.states import Body, RSTState, RSTStateMachine, SpecializedText
 from docutils.statemachine import StringList
 
 from sphinx import addnodes
-from sphinx.util.docutils import SphinxDirective
+from sphinx.locale import _
+from sphinx.util.docutils import NullReporter, SphinxDirective, new_document
 
 if False:
     # For type annotation
-    from typing import Iterable, List, Tuple, Union  # NOQA
+    from typing import Iterable, List, Match, Tuple, Union  # NOQA
     from sphinx.environment import BuildEnvironment  # NOQA
 
 
@@ -64,6 +66,63 @@ def make_glossary_term(env, textnodes, index_key, source, lineno, new_id=None):
     return term
 
 
+class GlossaryParser:
+    class Glossary(SpecializedText):
+        patterns = {'comment': r'\.\.( +|$)',
+                    'text': r''}
+        initial_transitions = [('comment', 'Comment'),
+                               ('text', 'Body')]
+
+        def text(self, match, context, next_state):
+            # type: (Match, List[str], str) -> Tuple[List[str], str, List[str]]
+            context.append(match.string)
+            return context, 'Term', []
+
+        def comment(self, match, context, next_state):
+            return [], 'Glossary', []
+
+    class Term(SpecializedText):
+        def text(self, match, context, next_state):
+            # type: (Match, List[str], str) -> Tuple[List[str], str, List[str]]
+            context.append(match.string)
+            indented, indent, line_offset, blank_finish = self.state_machine.get_indented()
+            return context, 'Term', []
+
+        def indent(self, match, context, next_state):
+            # type: (Match, List[str], str) -> Tuple[List[str], str, List[str]]
+            item = nodes.definition_list_item()
+            for term in context:
+                item += nodes.term(term, term)
+            indented, indent, line_offset, blank_finish = self.state_machine.get_indented()
+            item += nodes.definition()
+            self.nested_parse(indented, input_offset=line_offset, node=item[-1])
+            self.parent += item
+            return [], 'Glossary', []
+
+        def blank(self, match, context, next_state):
+            # type: (Match, List[str], str) -> Tuple[List[str], str, List[str]]
+            if context:
+                item = nodes.definition_list_item()
+                for term in context:
+                    item += nodes.term(term, term)
+                self.parent += item
+            return [], 'Glossary', []
+
+    def __init__(self, env, state):
+        # type: (BuildEnvironment, RSTState) -> None
+        self.env = env
+        self.state = state
+
+    def parse(self, content):
+        # type: (StringList) -> List[nodes.Node]
+        state_classes = (self.Glossary, self.Term)
+        state_machine = RSTStateMachine(state_classes, 'Glossary')
+        node = new_document('', self.state.document.settings)
+        node.reporter = NullReporter()
+        state_machine.run(content, node)
+        return node.children
+
+
 class Glossary(SphinxDirective):
     """
     Directive to create a glossary with cross-reference targets for :term:
@@ -80,16 +139,21 @@ class Glossary(SphinxDirective):
 
     def run(self):
         # type: () -> List[nodes.Node]
-        entries, messages = self.parse(self.content)
-        items = self.build(entries)
+        items, messages = self.parse(self.content)
+        #items = self.build(entries)
 
         node = addnodes.glossary()
         node.document = self.state.document
         node += nodes.definition_list(classes=['glossary'])
         node[0].extend(items)
+        print(node)
         return messages + [node]
 
     def parse(self, content):
+        parser = GlossaryParser(self.env, self.state)
+        return parser.parse(content), []
+
+    def parse2(self, content):
         # type: (StringList) -> Tuple[List[Tuple[Tuple[str, str, int]], StringList], List[nodes.Node]]  # NOQA
         """Parse definition list on content.
 
