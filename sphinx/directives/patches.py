@@ -162,6 +162,7 @@ class MathDirective(SphinxDirective):
         'name': directives.unchanged,
         'class': directives.class_option,
         'nowrap': directives.flag,
+        'numbered': directives.flag,
     }
 
     def run(self) -> List[Node]:
@@ -178,32 +179,27 @@ class MathDirective(SphinxDirective):
         self.add_name(node)
         self.set_source_info(node)
 
+        if self.is_numbered(node):
+            node['number'] = self.env.new_serialno('sphinx.ext.math#eqno') + 1
+
+        domain = cast(MathDomain, self.env.get_domain('math'))
+        domain.note_equation(self.env, node)
+
         ret = [node]  # type: List[Node]
         self.add_target(ret)
         return ret
 
+    def is_numbered(self, node: nodes.math_block) -> bool:
+        return node['label'] or self.config.math_number_all or 'numbered' in self.options
+
     def add_target(self, ret: List[Node]) -> None:
         node = cast(nodes.math_block, ret[0])
-
-        # assign label automatically if math_number_all enabled
-        if node['label'] == '' or (self.config.math_number_all and not node['label']):
-            seq = self.env.new_serialno('sphinx.ext.math#equations')
-            node['label'] = "%s:%d" % (self.env.docname, seq)
-
-        # no targets and numbers are needed
-        if not node['label']:
-            return
-
-        # register label to domain
-        domain = cast(MathDomain, self.env.get_domain('math'))
-        domain.note_equation(self.env.docname, node['label'], location=node)
-        node['number'] = domain.get_equation_number_for(node['label'])
-
-        # add target node
-        node_id = make_id('equation-%s' % node['label'])
-        target = nodes.target('', '', ids=[node_id])
-        self.state.document.note_explicit_target(target)
-        ret.insert(0, target)
+        if node['label']:
+            # add target node
+            node_id = make_id('equation-%s' % node['label'])
+            target = nodes.target('', '', ids=[node_id])
+            self.state.document.note_explicit_target(target)
+            ret.insert(0, target)
 
 
 def setup(app: "Sphinx") -> Dict[str, Any]:
