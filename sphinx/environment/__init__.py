@@ -124,9 +124,16 @@ class BuildEnvironment:
         self.all_docs = {}          # type: Dict[str, float]
                                     # docname -> mtime at the time of reading
                                     # contains all read docnames
-        self.dependencies = defaultdict(set)    # type: Dict[str, Set[str]]
+        self.read_dependencies = defaultdict(set)  # type: Dict[str, Set[str]]
+                                    # dependencies of each document mainly used on reading.
+                                    # Sphinx considers the document is need re-reading
+                                    # if these dependencies are changed.
                                     # docname -> set of dependent file
-                                    # names, relative to documentation root
+        self.write_dependencies = defaultdict(set)  # type: Dict[str, Set[str]]
+                                    # dependencies of each document mainly used on writing.
+                                    # Sphinx considers the document is need re-writing
+                                    # if these dependencies are changed.
+                                    # docname -> set of dependenct file.
         self.included = defaultdict(set)        # type: Dict[str, Set[str]]
                                     # docname -> set of included file
                                     # docnames included from other documents
@@ -175,6 +182,10 @@ class BuildEnvironment:
         self.images = FilenameUniqDict()    # type: FilenameUniqDict
         self.dlfiles = DownloadFiles()      # type: DownloadFiles
                                             # filename -> (set of docnames, destination)
+
+        # stores timestamp of each asset file
+        self.assets = {}            # type: Dict[unicode, int]
+                                    # path to asset file -> mtime
 
         # the original URI for images
         self.original_image_uri = {}  # type: Dict[str, str]
@@ -390,7 +401,7 @@ class BuildEnvironment:
                     domain = docname_to_domain(docname, self.config.gettext_compact)
                     for catalog in repo.catalogs:
                         if catalog.domain == domain:
-                            self.dependencies[docname].add(catalog.mo_path)
+                            self.read_dependencies[docname].add(catalog.mo_path)
         except OSError as exc:
             raise DocumentError(__('Failed to scan documents in %s: %r') % (self.srcdir, exc))
 
@@ -426,7 +437,7 @@ class BuildEnvironment:
                     changed.add(docname)
                     continue
                 # finally, check the mtime of dependencies
-                for dep in self.dependencies[docname]:
+                for dep in self.read_dependencies[docname]:
                     try:
                         # this will do the right thing when dep is absolute too
                         deppath = path.join(self.srcdir, dep)
@@ -486,7 +497,7 @@ class BuildEnvironment:
 
         *filename* should be absolute or relative to the source directory.
         """
-        self.dependencies[self.docname].add(filename)
+        self.read_dependencies[self.docname].add(filename)
 
     def note_included(self, filename: str) -> None:
         """Add *filename* as a included from other document.
@@ -754,6 +765,13 @@ class BuildEnvironment:
         from sphinx.domains.index import IndexDomain
         domain = cast(IndexDomain, self.get_domain('index'))
         return domain.entries
+
+    def dependencies(self):
+        # type: () -> Dict[unicode, Set[unicode]]
+        """Returns read_dependencies."""
+        warnings.warn('env.dependencies() is deprecated. Use env.read_dependencies instead.',
+                      RemovedInSphinx30Warning)
+        return self.read_dependencies
 
 
 from sphinx.errors import NoUri  # NOQA

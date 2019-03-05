@@ -25,13 +25,16 @@ class DependenciesCollector(EnvironmentCollector):
     """dependencies collector for sphinx.environment."""
 
     def clear_doc(self, app: Sphinx, env: BuildEnvironment, docname: str) -> None:
-        env.dependencies.pop(docname, None)
+        env.read_dependencies.pop(docname, None)
+        env.write_dependencies.pop(docname, None)
 
     def merge_other(self, app: Sphinx, env: BuildEnvironment,
                     docnames: Set[str], other: BuildEnvironment) -> None:
         for docname in docnames:
-            if docname in other.dependencies:
-                env.dependencies[docname] = other.dependencies[docname]
+            if docname in other.read_dependencies:
+                env.read_dependencies[docname] = other.read_dependencies[docname]
+            if docname in other.write_dependencies:
+                env.write_dependencies[docname] = other.write_dependencies[docname]
 
     def process_doc(self, app: Sphinx, doctree: nodes.document) -> None:
         """Process docutils-generated dependency info."""
@@ -47,7 +50,7 @@ class DependenciesCollector(EnvironmentCollector):
                 dep = dep.decode(fs_encoding)
             relpath = relative_path(frompath,
                                     path.normpath(path.join(cwd, dep)))
-            app.env.dependencies[app.env.docname].add(relpath)
+            app.env.read_dependencies[app.env.docname].add(relpath)
 
 
 def setup(app: Sphinx) -> Dict[str, Any]:
