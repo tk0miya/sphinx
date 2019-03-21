@@ -286,23 +286,17 @@ class DocFieldTransformer:
                 entries.append(field)
 
                 # but if this has a type then we can at least link it
-                if (typedesc and is_typefield and content and
+                if (typedesc and is_typefield and
                         len(content) == 1 and isinstance(content[0], nodes.Text)):
                     typed_field = cast(TypedField, typedesc)
-                    target = content[0].astext()
                     xrefs = typed_field.make_xrefs(
                         typed_field.typerolename,
                         self.directive.domain,
-                        target,
+                        content[0].astext(),
                         contnode=content[0],
                     )
-                    if _is_single_paragraph(field_body):
-                        paragraph = cast(nodes.paragraph, field_body[0])
-                        paragraph.clear()
-                        paragraph.extend(xrefs)
-                    else:
-                        field_body.clear()
-                        field_body += nodes.paragraph('', '', *xrefs)
+                    field_body.clear()
+                    field_body += nodes.paragraph('', '', *xrefs)
 
                 continue
 
@@ -325,8 +319,7 @@ class DocFieldTransformer:
                 except ValueError:
                     pass
                 else:
-                    types.setdefault(typename, {})[argname] = \
-                        [nodes.Text(argtype)]
+                    types.setdefault(typename, {})[argname] = [nodes.Text(argtype)]
                     fieldarg = argname
 
             translatable_content = nodes.inline(field_body.rawsource,
@@ -360,8 +353,7 @@ class DocFieldTransformer:
             else:
                 fieldtype, items = entry
                 fieldtypes = types.get(fieldtype.name, {})
-                env = self.directive.state.document.settings.env
                 new_list += fieldtype.make_field(fieldtypes, self.directive.domain,
-                                                 items, env=env)
+                                                 items, env=self.directive.env)
 
         node.replace_self(new_list)
