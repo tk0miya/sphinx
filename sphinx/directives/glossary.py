@@ -91,8 +91,9 @@ class GlossaryParser:
         def indent(self, match, context, next_state):
             # type: (Match, List[str], str) -> Tuple[List[str], str, List[str]]
             item = nodes.definition_list_item()
-            for term in context:
-                item += nodes.term(term, term)
+            for i, term in enumerate(context):
+                offset = -len(context) + i
+                item += self.create_termnode(term, offset)
             indented, indent, line_offset, blank_finish = self.state_machine.get_indented()
             item += nodes.definition()
             self.nested_parse(indented, input_offset=line_offset, node=item[-1])
@@ -103,10 +104,18 @@ class GlossaryParser:
             # type: (Match, List[str], str) -> Tuple[List[str], str, List[str]]
             if context:
                 item = nodes.definition_list_item()
-                for term in context:
-                    item += nodes.term(term, term)
+                for i, term in enumerate(context):
+                    offset = -len(context) + i
+                    item += self.create_termnode(term, offset)
                 self.parent += item
             return [], 'Glossary', []
+
+        def create_termnode(self, text, offset):
+            # type: (str, int) -> nodes.term
+            source, lineno = self.state_machine.get_source_and_line()
+            parts = split_term_classifiers(text)
+            textnodes, sysmsg = self.state.inline_text(parts[0], lineno + offset)
+            return None
 
     def __init__(self, env, state):
         # type: (BuildEnvironment, RSTState) -> None
