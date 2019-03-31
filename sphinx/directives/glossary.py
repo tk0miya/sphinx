@@ -151,7 +151,11 @@ class Glossary(SphinxDirective):
 
     def parse(self, content):
         parser = GlossaryParser(self.env, self.state)
-        return parser.parse(content), []
+        doctree = parser.parse(content)
+        for node in doctree.traverse(nodes.term):
+            pass
+
+        return doctree, []
 
     def parse2(self, content):
         # type: (StringList) -> Tuple[List[Tuple[Tuple[str, str, int]], StringList], List[nodes.Node]]  # NOQA
