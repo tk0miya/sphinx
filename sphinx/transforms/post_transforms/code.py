@@ -9,20 +9,28 @@
 """
 
 import sys
+import warnings
 from typing import NamedTuple
 
 from docutils import nodes
-from pygments.lexers import PythonConsoleLexer, guess_lexer
+from pygments.lexers import PythonConsoleLexer, get_lexer_by_name, guess_lexer
+from pygments.util import ClassNotFound
 
 from sphinx import addnodes
+from sphinx.deprecation import RemovedInSphinx40Warning
 from sphinx.ext import doctest
+from sphinx.locale import __
 from sphinx.transforms import SphinxTransform
+from sphinx.util import logging
+from sphinx.util.nodes import NodeMatcher
 
 if False:
     # For type annotation
     from typing import Any, Dict, List  # NOQA
     from sphinx.application import Sphinx  # NOQA
 
+
+logger = logging.getLogger(__name__)
 
 HighlightSetting = NamedTuple('HighlightSetting', [('language', str),
                                                    ('lineno_threshold', int)])
@@ -95,6 +103,51 @@ class HighlightLanguageVisitor(nodes.NodeVisitor):
             lines = node.astext().count('\n')
             node['linenos'] = (lines >= setting.lineno_threshold - 1)
 
+    def visit_doctest_block(self, node):
+        # type: (nodes.doctest_block) -> None
+        self.visit_literal_block(node)  # type: ignore
+
+
+class HighlightLanguageDetector(SphinxTransform):
+    """Determine language of literal_block nodes."""
+    default_priority = HighlightLanguageTransform.default_priority + 10
+
+    def apply(self, **kwargs):
+        # type: (Any) -> None
+        matcher = NodeMatcher(nodes.literal_block, nodes.doctest_block)
+        for node in self.document.traverse(matcher):
+            node['language'] = self.detect(node)
+
+    def detect(self, node):
+        # type: (nodes.literal_block) -> str
+        language = node['language']
+        if language in ('py', 'python'):
+            if node.rawsource.startswith('>>>'):
+                return 'pycon'
+            else:
+                return 'python'
+        elif language in ('py3', 'python3', 'default'):
+            if node.rawsource.startswith('>>>'):
+                return 'pycon3'
+            else:
+                return 'python3'
+        elif language == 'pycon3':  # Sphinx's custom lexer
+            return 'pycon3'
+        elif language == 'guess':
+            try:
+                lexer = guess_lexer(node.rawsource)
+                return lexer.aliases[0]
+            except Exception:
+                return 'none'
+        else:
+            try:
+                get_lexer_by_name(language)
+                return language
+            except ClassNotFound:
+                logger.warning(__('Pygments lexer name %r is not known'), language,
+                               location=node)
+                return 'none'
+
 
 class TrimDoctestFlagsTransform(SphinxTransform):
     """
@@ -102,7 +155,7 @@ class TrimDoctestFlagsTransform(SphinxTransform):
 
     see :confval:`trim_doctest_flags` for more information.
     """
-    default_priority = HighlightLanguageTransform.default_priority + 1
+    default_priority = HighlightLanguageDetector.default_priority + 10
 
     def apply(self, **kwargs):
         # type: (Any) -> None
@@ -110,7 +163,7 @@ class TrimDoctestFlagsTransform(SphinxTransform):
             return
 
         for node in self.document.traverse(nodes.literal_block):
-            if self.is_pyconsole(node):
+            if node['language'] in ('pycon', 'pycon3'):
                 source = node.rawsource
                 source = doctest.blankline_re.sub('', source)
                 source = doctest.doctestopt_re.sub('', source)
@@ -120,6 +173,8 @@ class TrimDoctestFlagsTransform(SphinxTransform):
     @staticmethod
     def is_pyconsole(node):
         # type: (nodes.literal_block) -> bool
+        warnings.warn('TrimDoctestFlagsTransform.is_pyconsole() is deprecated.',
+                      RemovedInSphinx40Warning)
         if node.rawsource != node.astext():
             return False  # skip parsed-literal node
 
@@ -141,6 +196,7 @@ class TrimDoctestFlagsTransform(SphinxTransform):
 def setup(app):
     # type: (Sphinx) -> Dict[str, Any]
     app.add_post_transform(HighlightLanguageTransform)
+    app.add_post_transform(HighlightLanguageDetector)
     app.add_post_transform(TrimDoctestFlagsTransform)
 
     return {

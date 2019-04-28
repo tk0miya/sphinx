@@ -15,7 +15,7 @@ from pygments import highlight
 from pygments.filters import ErrorToken
 from pygments.formatters import HtmlFormatter, LatexFormatter
 from pygments.lexer import Lexer
-from pygments.lexers import get_lexer_by_name, guess_lexer
+from pygments.lexers import get_lexer_by_name
 from pygments.lexers import PythonLexer, Python3Lexer, PythonConsoleLexer, \
     CLexer, TextLexer, RstLexer
 from pygments.styles import get_style_by_name
@@ -115,46 +115,25 @@ class PygmentsBridge:
             return '\\begin{Verbatim}[commandchars=\\\\\\{\\}]\n' + \
                    source + '\\end{Verbatim}\n'
 
-    def get_lexer(self, source, lang, opts=None, location=None):
-        # type: (str, str, Any, Any) -> Lexer
-        # find out which lexer to use
-        if lang in ('py', 'python'):
-            if source.startswith('>>>'):
-                # interactive session
-                lexer = lexers['pycon']
-            else:
-                lexer = lexers['python']
-        elif lang in ('py3', 'python3', 'default'):
-            if source.startswith('>>>'):
-                lexer = lexers['pycon3']
-            else:
-                lexer = lexers['python3']
-        elif lang == 'guess':
-            try:
-                lexer = guess_lexer(source)
-            except Exception:
-                lexer = lexers['none']
+    def get_lexer(self, lang, opts=None):
+        # type: (str, Any) -> Lexer
+        if lang in lexers:
+            lexer = lexers[lang]
         else:
-            if lang in lexers:
-                lexer = lexers[lang]
-            else:
-                try:
-                    lexer = lexers[lang] = get_lexer_by_name(lang, **(opts or {}))
-                except ClassNotFound:
-                    logger.warning(__('Pygments lexer name %r is not known'), lang,
-                                   location=location)
-                    lexer = lexers['none']
-                else:
-                    lexer.add_filter('raiseonerror')
+            try:
+                lexer = lexers[lang] = get_lexer_by_name(lang, **(opts or {}))
+                lexer.add_filter('raiseonerror')
+            except ClassNotFound:
+                lexer = lexers['none']
 
-            return lexer
+        return lexer
 
     def highlight_block(self, source, lang, opts=None, location=None, force=False, **kwargs):
         # type: (str, str, Any, Any, bool, Any) -> str
         if not isinstance(source, str):
             source = source.decode()
 
-        lexer = self.get_lexer(source, lang, opts, location)
+        lexer = self.get_lexer(lang, opts)
 
         # trim doctest options if wanted
         if isinstance(lexer, PythonConsoleLexer) and self.trim_doctest_flags:

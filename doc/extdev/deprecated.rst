@@ -216,6 +216,11 @@ The following is a list of deprecated interfaces.
      - 4.0
      - ``sphinx.domains.citation.CitationDefinitionTransform``
 
+   * - ``sphinx.transforms.post_transforms.code.TrimDoctestFlagsTransform.is_pyconsole()``
+     - 2.1
+     - 4.0
+     - N/A
+
    * - ``sphinx.util.docfields.DocFieldTransformer.preprocess_fieldtypes()``
      - 2.1
      - 4.0
