@@ -9,10 +9,13 @@
 """
 
 import traceback
-from typing import Any, Dict, Iterable, Iterator, Set, Tuple
+from copy import copy
+from typing import Any, Dict, Generator, Iterable, Iterator, Set, Tuple
 
 from docutils import nodes
 from docutils.nodes import Element, Node
+from pygments.formatters import HtmlFormatter
+
 
 import sphinx
 from sphinx import addnodes
@@ -143,7 +146,8 @@ def collect_pages(app: Sphinx) -> Iterator[Tuple[str, Dict[str, Any], str]]:
     env = app.builder.env
     if not hasattr(env, '_viewcode_modules'):
         return
-    highlighter = app.builder.highlighter  # type: ignore
+    highlighter = copy(app.builder.highlighter)
+    highlighter.formatter = ViewcodeHtmlFormatter
     urito = app.builder.get_relative_uri
 
     modnames = set(env._viewcode_modules)  # type: ignore
@@ -163,7 +167,8 @@ def collect_pages(app: Sphinx) -> Iterator[Tuple[str, Dict[str, Any], str]]:
             lexer = env.config.highlight_language
         else:
             lexer = 'python'
-        highlighted = highlighter.highlight_block(code, lexer, linenos=False)
+        highlighted = highlighter.highlight_block(code, lexer, linenos=False,
+                                                  tags=tags, used=used, refname=refname)
         # split the code into lines
         lines = highlighted.splitlines()
         # split off wrap markup from the first line of the actual code
@@ -231,6 +236,30 @@ def collect_pages(app: Sphinx) -> Iterator[Tuple[str, Dict[str, Any], str]]:
     }
 
     yield ('_modules/index', context, 'page.html')
+
+
+class ViewcodeHtmlFormatter(HtmlFormatter):
+    def __init__(self, **options: Any) -> None:
+        super().__init__(**options)
+        self.tags = options.get('tags', {})
+        self.used = options.get('used', {})
+        self.refname = options.get('refname', '')
+
+    def wrap_backref(self, source: Generator[str, None, None]) -> Generator[str, None, None]:
+        maxindex = len(lines) - 1
+        for name, docname in used.items():
+            _, start, end = tags[name]
+            backlink = urito(pagename, docname) + '#' + refname + '.' + name
+            lines[start] = (
+                '<div class="viewcode-block" id="%s"><a class="viewcode-back" '
+                'href="%s">%s</a>' % (name, backlink, _('[docs]')) +
+                lines[start])
+            lines[min(end, maxindex)] += '</div>'
+
+    def wrap(self, source: Generator[str, None, None], outfile: str
+             ) -> Generator[str, None, None]:
+        source = self.wrap_backref(source)
+        return super().wrap(source, outfile)
 
 
 def setup(app: Sphinx) -> Dict[str, Any]:
