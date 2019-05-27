@@ -480,6 +480,11 @@ class PyClasslike(PyObject):
     Description of a class-like object (classes, interfaces, exceptions).
     """
 
+    option_spec = PyObject.option_spec.copy()
+    option_spec.update({
+        'bases': directives.unchanged,
+    })
+
     allow_nesting = True
 
     def get_signature_prefix(self, sig):
