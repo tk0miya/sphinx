@@ -17,6 +17,7 @@ from typing import Any
 from docutils.statemachine import StringList
 
 import sphinx
+from sphinx.config import ENUM
 from sphinx.deprecation import (
     RemovedInSphinx30Warning, RemovedInSphinx40Warning, deprecated_alias
 )
@@ -1583,6 +1584,17 @@ def merge_autodoc_default_flags(app, config):
             )
 
 
+def validate_autodoc_class_signature(app, config):
+    # type: (Sphinx, Config) -> None
+    """Check autodoc_class_signature."""
+    if (config.autodoc_class_signature == 'inheritance' and
+            config.autoclass_content in ('both', 'init')):
+        logger.warning(__("Inconsistent autodoc_class_signature(%s) and "
+                          "autoclass_content(%s) are detected."),
+                       config.autodoc_class_signature, config.autoclass_content,
+                       type='autodoc')
+
+
 from sphinx.ext.autodoc.mock import _MockImporter  # NOQA
 
 deprecated_alias('sphinx.ext.autodoc',
@@ -1606,8 +1618,11 @@ def setup(app):
     app.add_autodocumenter(InstanceAttributeDocumenter)
     app.add_autodocumenter(SlotsAttributeDocumenter)
 
-    app.add_config_value('autoclass_content', 'class', True)
+    app.add_config_value('autoclass_content', 'class', True,
+                         ENUM('class', 'both', 'init'))
     app.add_config_value('autodoc_member_order', 'alphabetic', True)
+    app.add_config_value('autodoc_class_signature', '__init__', True,
+                         ENUM('__init__', 'inheritance'))
     app.add_config_value('autodoc_default_flags', [], True)
     app.add_config_value('autodoc_default_options', {}, True)
     app.add_config_value('autodoc_docstring_signature', True, True)
@@ -1619,5 +1634,6 @@ def setup(app):
     app.add_event('autodoc-skip-member')
 
     app.connect('config-inited', merge_autodoc_default_flags)
+    app.connect('config-inited', validate_autodoc_class_signature)
 
     return {'version': sphinx.__display_version__, 'parallel_read_safe': True}
