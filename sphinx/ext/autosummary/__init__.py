@@ -69,6 +69,7 @@ from docutils import nodes
 
 import sphinx
 from sphinx import addnodes
+from sphinx.config import ENUM
 from sphinx.environment.adapters.toctree import TocTree
 from sphinx.util import import_object, rst, logging
 from sphinx.pycode import ModuleAnalyzer, PycodeError
@@ -639,5 +640,7 @@ def setup(app):
     app.connect('doctree-read', process_autosummary_toc)
     app.connect('builder-inited', process_generate_options)
     app.add_config_value('autosummary_generate', [], True, [bool])
-    app.add_config_value('autosummary_inherited_members', 'all', 'env', [str])
+    app.add_config_value('autosummary_inherited_members', 'all', 'env',
+                         ENUM('all', 'overriden', 'none'))
+
     return {'version': sphinx.__display_version__, 'parallel_read_safe': True}

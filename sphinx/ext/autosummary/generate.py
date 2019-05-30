@@ -109,7 +109,6 @@ def _should_skip_inherited_member(obj, membername, inherited_members):
      the inherited_members config value.
     """
 
-    assert inherited_members in ('all', 'overridden', 'none'), inherited_members
     if inherited_members == 'all':
         # Document all inherited members
         return False
@@ -124,8 +123,6 @@ def _should_skip_inherited_member(obj, membername, inherited_members):
     elif inherited_members == 'none':
         # Document only new members
         return len(base_methods) > 0
-    else:
-        assert False
 
 
 def generate_autosummary_docs(sources, output_dir=None, suffix='.rst',
@@ -134,8 +131,6 @@ def generate_autosummary_docs(sources, output_dir=None, suffix='.rst',
                               imported_members=False, inherited_members=None):
     # type: (List[unicode], unicode, unicode, Callable, Callable, unicode, Builder, unicode, bool) -> None  # NOQA
 
-    if inherited_members not in ('all', 'overridden', 'none'):
-        raise ValueError('Invalid value for inherited_members: %s' % inherited_members)
     showed_sources = list(sorted(sources))
     if len(showed_sources) > 20:
         showed_sources = showed_sources[:10] + ['...'] + showed_sources[-10:]
