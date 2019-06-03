@@ -7166,21 +7166,21 @@ class CPPDomain(Domain):
     def process_field_xref(self, pnode: pending_xref) -> None:
         pnode.attributes.update(self.env.ref_context)
 
-    def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
+    def merge_doc(self, docname: str, other: "CPPDomain") -> None:
         if Symbol.debug_show_tree:
-            print("merge_domaindata:")
+            print("merge_doc:")
             print("\tself:")
             print(self.data['root_symbol'].dump(1))
             print("\tself end")
             print("\tother:")
-            print(otherdata['root_symbol'].dump(1))
+            print(other.data['root_symbol'].dump(1))
             print("\tother end")
 
-        self.data['root_symbol'].merge_with(otherdata['root_symbol'],
-                                            docnames, self.env)
+        self.data['root_symbol'].merge_with(other.data['root_symbol'],
+                                            [docname], self.env)
         ourNames = self.data['names']
-        for name, docname in otherdata['names'].items():
-            if docname in docnames:
+        for name, _docname in other.data['names'].items():
+            if _docname == docname:
                 if name in ourNames:
                     msg = __("Duplicate declaration, also defined in '%s'.\n"
                              "Name of declaration is '%s'.")

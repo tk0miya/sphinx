@@ -308,7 +308,11 @@ class BuildEnvironment:
             self.reread_always.add(docname)
 
         for domainname, domain in self.domains.items():
-            domain.merge_domaindata([docname], other.domaindata[domainname])
+            try:
+                domain.merge_doc(docname, other.get_domain(domainname))
+            except NotImplementedError:
+                domain.merge_domaindata([docname], other.domaindata[domainname])
+
         self.events.emit('env-merge-info', self, [docname], other)
 
     def merge_info_from(self, docnames: List[str], other: "BuildEnvironment",

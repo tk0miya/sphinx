@@ -126,12 +126,12 @@ class ChangeSetDomain(Domain):
                 if changeset.docname == docname:
                     changes.remove(changeset)
 
-    def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
+    def merge_doc(self, docname: str, other: "ChangeSetDomain") -> None:
         # XXX duplicates?
-        for version, otherchanges in otherdata['changes'].items():
+        for version, otherchanges in other.changesets.items():
             changes = self.changesets.setdefault(version, [])
             for changeset in otherchanges:
-                if changeset.docname in docnames:
+                if changeset.docname == docname:
                     changes.append(changeset)
 
     def process_doc(self, env: "BuildEnvironment", docname: str, document: nodes.document) -> None:  # NOQA

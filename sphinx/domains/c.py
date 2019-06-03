@@ -3317,29 +3317,28 @@ class CDomain(Domain):
     def process_field_xref(self, pnode: pending_xref) -> None:
         pnode.attributes.update(self.env.ref_context)
 
-    def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
+    def merge_doc(self, docname: str, other: "CDomain") -> None:
         if Symbol.debug_show_tree:
             print("merge_domaindata:")
             print("\tself:")
             print(self.data['root_symbol'].dump(1))
             print("\tself end")
             print("\tother:")
-            print(otherdata['root_symbol'].dump(1))
+            print(other.data['root_symbol'].dump(1))
             print("\tother end")
             print("merge_domaindata end")
 
-        self.data['root_symbol'].merge_with(otherdata['root_symbol'],
-                                            docnames, self.env)
-        ourObjects = self.data['objects']
-        for fullname, (fn, id_, objtype) in otherdata['objects'].items():
-            if fn in docnames:
-                if fullname in ourObjects:
+        self.data['root_symbol'].merge_with(other.data['root_symbol'],
+                                            [docname], self.env)
+        for fullname, (fn, id_, objtype) in other.objects.items():
+            if fn == docname:
+                if fullname in self.objects:
                     msg = __("Duplicate declaration, also defined in '%s'.\n"
                              "Name of declaration is '%s'.")
-                    msg = msg % (ourObjects[fullname], fullname)
+                    msg = msg % (self.objects[fullname], fullname)
                     logger.warning(msg, location=fn)
                 else:
-                    ourObjects[fullname] = (fn, id_, objtype)
+                    self.objects[fullname] = (fn, id_, objtype)
 
     def _resolve_xref_inner(self, env: BuildEnvironment, fromdocname: str, builder: Builder,
                             typ: str, target: str, node: pending_xref,

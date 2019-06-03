@@ -690,20 +690,21 @@ class StandardDomain(Domain):
             if fn == docname:
                 del self.anonlabels[key]
 
-    def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
+    def merge_doc(self, docname: str, other: "StandardDomain") -> None:
         # XXX duplicates?
-        for key, data in otherdata['progoptions'].items():
-            if data[0] in docnames:
-                self.progoptions[key] = data
-        for key, data in otherdata['objects'].items():
-            if data[0] in docnames:
-                self.objects[key] = data
-        for key, data in otherdata['labels'].items():
-            if data[0] in docnames:
-                self.labels[key] = data
-        for key, data in otherdata['anonlabels'].items():
-            if data[0] in docnames:
-                self.anonlabels[key] = data
+        key = None  # type: Any
+        for key, progoption in other.progoptions.items():
+            if progoption[0] == docname:
+                self.progoptions[key] = progoption
+        for key, _object in other.objects.items():
+            if _object[0] == docname:
+                self.objects[key] = _object
+        for key, label in other.labels.items():
+            if label[0] == docname:
+                self.labels[key] = label
+        for key, anonlabel in other.anonlabels.items():
+            if anonlabel[0] == docname:
+                self.anonlabels[key] = anonlabel
 
     def process_doc(self, env: "BuildEnvironment", docname: str, document: nodes.document) -> None:  # NOQA
         for name, explicit in document.nametypes.items():

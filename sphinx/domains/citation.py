@@ -59,16 +59,15 @@ class CitationDomain(Domain):
             elif docname in docnames:
                 docnames.remove(docname)
 
-    def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
+    def merge_doc(self, docname: str, other: "CitationDomain") -> None:
         # XXX duplicates?
-        for key, data in otherdata['citations'].items():
-            if data[0] in docnames:
-                self.citations[key] = data
-        for key, data in otherdata['citation_refs'].items():
-            citation_refs = self.citation_refs.setdefault(key, set())
-            for docname in data:
-                if docname in docnames:
-                    citation_refs.add(docname)
+        for key, citation in other.citations.items():
+            if citation[0] == docname:
+                self.citations[key] = citation
+        for key, docnames in other.citation_refs.items():
+            if docname in docnames:
+                citation_refs = self.citation_refs.setdefault(key, set())
+                citation_refs.add(docname)
 
     def note_citation(self, node: nodes.citation) -> None:
         label = node[0].astext()

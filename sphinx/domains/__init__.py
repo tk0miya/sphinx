@@ -10,7 +10,10 @@
 """
 
 import copy
-from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Tuple, Union
+import warnings
+from typing import (
+    Any, Callable, Dict, Generic, Iterable, List, NamedTuple, Tuple, TypeVar, Union
+)
 from typing import cast
 
 from docutils import nodes
@@ -18,6 +21,7 @@ from docutils.nodes import Element, Node, system_message
 from docutils.parsers.rst.states import Inliner
 
 from sphinx.addnodes import pending_xref
+from sphinx.deprecation import RemovedInSphinx50Warning
 from sphinx.errors import SphinxError
 from sphinx.locale import _
 from sphinx.roles import XRefRole
@@ -152,7 +156,10 @@ class Index:
         raise NotImplementedError
 
 
-class Domain:
+T = TypeVar('T')
+
+
+class Domain(Generic[T]):
     """
     A Domain is meant to be a group of "object" description directives for
     objects of a similar nature, and corresponding roles to create references to
@@ -292,13 +299,27 @@ class Domain:
         """Remove traces of a document in the domain-specific inventories."""
         pass
 
+    def merge_doc(self: T, docname: str, other: T) -> None:
+        """Merge in data regarding *docname* from a different domain
+        (coming from a subprocess in parallel builds).
+        """
+        raise NotImplementedError('merge_doc must be implemented in %s '
+                                  'to be able to do parallel builds!' %
+                                  self.__class__)
+
     def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
         """Merge in data regarding *docnames* from a different domaindata
         inventory (coming from a subprocess in parallel builds).
         """
-        raise NotImplementedError('merge_domaindata must be implemented in %s '
-                                  'to be able to do parallel builds!' %
-                                  self.__class__)
+        warnings.warn('%s.merge_domaindata() is deprecated' % self.__class__.__name__,
+                      RemovedInSphinx50Warning)
+
+        from sphinx.environment import BuildEnvironment
+        env = BuildEnvironment()
+        env.domaindata[self.name] = otherdata
+        domain = self.__class__(env)
+        for docname in docnames:
+            self.merge_doc(docname, domain)  # type: ignore
 
     def process_doc(self, env: "BuildEnvironment", docname: str,
                     document: nodes.document) -> None:

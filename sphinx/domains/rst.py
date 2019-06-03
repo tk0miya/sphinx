@@ -240,10 +240,10 @@ class ReSTDomain(Domain):
             if doc == docname:
                 del self.objects[typ, name]
 
-    def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
+    def merge_doc(self, docname: str, other: "ReSTDomain") -> None:
         # XXX check duplicates
-        for (typ, name), (doc, node_id) in otherdata['objects'].items():
-            if doc in docnames:
+        for (typ, name), (doc, node_id) in other.objects.items():
+            if doc == docname:
                 self.objects[typ, name] = (doc, node_id)
 
     def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder,

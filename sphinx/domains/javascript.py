@@ -373,13 +373,13 @@ class JavaScriptDomain(Domain):
             if pkg_docname == docname:
                 del self.modules[modname]
 
-    def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
+    def merge_doc(self, docname: str, other: "JavaScriptDomain") -> None:
         # XXX check duplicates
-        for fullname, (fn, node_id, objtype) in otherdata['objects'].items():
-            if fn in docnames:
+        for fullname, (fn, node_id, objtype) in other.objects.items():
+            if fn == docname:
                 self.objects[fullname] = (fn, node_id, objtype)
-        for mod_name, (pkg_docname, node_id) in otherdata['modules'].items():
-            if pkg_docname in docnames:
+        for mod_name, (pkg_docname, node_id) in other.modules.items():
+            if pkg_docname == docname:
                 self.modules[mod_name] = (pkg_docname, node_id)
 
     def find_obj(self, env: BuildEnvironment, mod_name: str, prefix: str, name: str,

@@ -10,6 +10,7 @@ Incompatible changes
 Deprecated
 ----------
 
+* ``sphinx.domains.Domain.merge_domaindata()``
 * ``sphinx.environment.BuildEnvironment.merge_info_from()``
 
 Features added

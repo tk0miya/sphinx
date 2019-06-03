@@ -42,9 +42,8 @@ class IndexDomain(Domain):
     def clear_doc(self, docname: str) -> None:
         self.entries.pop(docname, None)
 
-    def merge_domaindata(self, docnames: Iterable[str], otherdata: Dict) -> None:
-        for docname in docnames:
-            self.entries[docname] = otherdata['entries'][docname]
+    def merge_doc(self, docname: str, other: "IndexDomain") -> None:
+        self.entries[docname] = other.entries[docname]
 
     def process_doc(self, env: BuildEnvironment, docname: str, document: Node) -> None:
         """Process a document after it is read by the environment."""

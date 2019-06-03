@@ -1174,13 +1174,13 @@ class PythonDomain(Domain):
             if mod.docname == docname:
                 del self.modules[modname]
 
-    def merge_domaindata(self, docnames: List[str], otherdata: Dict) -> None:
+    def merge_doc(self, docname: str, other: "PythonDomain") -> None:
         # XXX check duplicates?
-        for fullname, obj in otherdata['objects'].items():
-            if obj.docname in docnames:
+        for fullname, obj in other.objects.items():
+            if obj.docname == docname:
                 self.objects[fullname] = obj
-        for modname, mod in otherdata['modules'].items():
-            if mod.docname in docnames:
+        for modname, mod in other.modules.items():
+            if mod.docname == docname:
                 self.modules[modname] = mod
 
     def find_obj(self, env: BuildEnvironment, modname: str, classname: str,

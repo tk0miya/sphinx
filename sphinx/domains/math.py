@@ -91,13 +91,12 @@ class MathDomain(Domain):
 
         self.data['has_equations'].pop(docname, None)
 
-    def merge_domaindata(self, docnames: Iterable[str], otherdata: Dict) -> None:
-        for labelid, (doc, eqno) in otherdata['objects'].items():
-            if doc in docnames:
+    def merge_doc(self, docname: str, other: "MathDomain") -> None:
+        for labelid, (doc, eqno) in other.equations.items():
+            if doc == docname:
                 self.equations[labelid] = (doc, eqno)
 
-        for docname in docnames:
-            self.data['has_equations'][docname] = otherdata['has_equations'][docname]
+        self.data['has_equations'][docname] = other.data['has_equations'][docname]
 
     def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: "Builder",
                      typ: str, target: str, node: pending_xref, contnode: Element

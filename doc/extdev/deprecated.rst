@@ -26,6 +26,11 @@ The following is a list of deprecated interfaces.
      - (will be) Removed
      - Alternatives
 
+   * - ``sphinx.domains.Domain.merge_domaindata()``
+     - 3.1
+     - 5.0
+     - ``sphinx.domains.Domain.merge_doc()``
+
    * - ``sphinx.environment.BuildEnvironment.merge_info_from()``
      - 3.1
      - 5.0
