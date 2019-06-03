@@ -22,7 +22,7 @@ from docutils.nodes import Node
 
 from sphinx import addnodes
 from sphinx.config import Config
-from sphinx.deprecation import RemovedInSphinx40Warning
+from sphinx.deprecation import RemovedInSphinx40Warning, RemovedInSphinx50Warning
 from sphinx.domains import Domain
 from sphinx.environment.adapters.toctree import TocTree
 from sphinx.errors import SphinxError, BuildEnvironmentError, DocumentError, ExtensionError
@@ -296,6 +296,21 @@ class BuildEnvironment:
         for domain in self.domains.values():
             domain.clear_doc(docname)
 
+    def merge_doc(self, docname: str, other: "BuildEnvironment") -> None:
+        """Merge global information gathered about *docname* while reading them
+        from the *other* environment.
+
+        This possibly comes from a parallel build process.
+        """
+        self.all_docs[docname] = other.all_docs[docname]
+        self.included[docname] = other.included[docname]
+        if docname in other.reread_always:
+            self.reread_always.add(docname)
+
+        for domainname, domain in self.domains.items():
+            domain.merge_domaindata([docname], other.domaindata[domainname])
+        self.events.emit('env-merge-info', self, [docname], other)
+
     def merge_info_from(self, docnames: List[str], other: "BuildEnvironment",
                         app: "Sphinx") -> None:
         """Merge global information gathered about *docnames* while reading them
@@ -303,16 +318,11 @@ class BuildEnvironment:
 
         This possibly comes from a parallel build process.
         """
-        docnames = set(docnames)  # type: ignore
-        for docname in docnames:
-            self.all_docs[docname] = other.all_docs[docname]
-            self.included[docname] = other.included[docname]
-            if docname in other.reread_always:
-                self.reread_always.add(docname)
+        warnings.warn('BuildEnvironment.merge_info_from() is deprecated',
+                      RemovedInSphinx50Warning)
 
-        for domainname, domain in self.domains.items():
-            domain.merge_domaindata(docnames, other.domaindata[domainname])
-        self.events.emit('env-merge-info', self, docnames, other)
+        for docname in docnames:
+            self.merge_doc(docname, other)
 
     def path2doc(self, filename: str) -> str:
         """Return the docname for the filename if the file is document.

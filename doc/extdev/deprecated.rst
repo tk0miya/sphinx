@@ -26,6 +26,11 @@ The following is a list of deprecated interfaces.
      - (will be) Removed
      - Alternatives
 
+   * - ``sphinx.environment.BuildEnvironment.merge_info_from()``
+     - 3.1
+     - 5.0
+     - ``sphinx.environment.BuildEnvironment.merge_doc()``
+
    * - ``desc_signature['first']``
      -
      - 3.0

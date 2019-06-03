@@ -10,6 +10,8 @@ Incompatible changes
 Deprecated
 ----------
 
+* ``sphinx.environment.BuildEnvironment.merge_info_from()``
+
 Features added
 --------------
 

@@ -453,7 +453,8 @@ class Builder:
 
         def merge(docs: List[str], otherenv: bytes) -> None:
             env = pickle.loads(otherenv)
-            self.env.merge_info_from(docs, env, self.app)
+            for docname in docs:
+                self.env.merge_doc(docname, env)
 
         tasks = ParallelTasks(nproc)
         chunks = make_chunks(docnames, nproc)
