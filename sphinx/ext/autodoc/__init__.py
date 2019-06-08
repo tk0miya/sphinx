@@ -597,8 +597,12 @@ class Documenter:
             else:
                 # ignore undocumented members if :undoc-members: is not given
                 keep = has_doc or self.options.undoc_members
-                # module top level item or not
-                isattr = membername in tagorder
+
+                if (self.options.undoc_variables and
+                        (self.options.undoc_variables is ALL or
+                         membername in self.options.undoc_variables)):
+                    # might be a module top level item
+                    isattr = membername in tagorder
 
             # give the user a chance to decide whether this member
             # should be skipped
@@ -780,7 +784,8 @@ class ModuleDocumenter(Documenter):
         'platform': identity, 'deprecated': bool_option,
         'member-order': identity, 'exclude-members': members_set_option,
         'private-members': bool_option, 'special-members': members_option,
-        'imported-members': bool_option, 'ignore-module-all': bool_option
+        'imported-members': bool_option, 'ignore-module-all': bool_option,
+        'undoc-variables': members_option,
     }  # type: Dict[str, Callable]
 
     def __init__(self, *args):

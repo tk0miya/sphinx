@@ -1704,6 +1704,26 @@ def test_module_variables():
         "   :annotation: = ''",
         '',
         '   docstring for CONSTANT1',
+        '   '
+    ]
+
+
+@pytest.mark.usefixtures('setup_test')
+def test_module_undoc_variables():
+    options = {"members": None,
+               "undoc-members": True,
+               "undoc-variables": True}
+    actual = do_autodoc(app, 'module', 'target.module', options)
+    assert list(actual) == [
+        '',
+        '.. py:module:: target.module',
+        '',
+        '',
+        '.. py:data:: CONSTANT1',
+        '   :module: target.module',
+        "   :annotation: = ''",
+        '',
+        '   docstring for CONSTANT1',
         '   ',
         '',
         '.. py:data:: CONSTANT2',
