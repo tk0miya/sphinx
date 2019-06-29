@@ -96,7 +96,7 @@ class autosummary_directives:
         roles.role = self.original_role
 
     def directive(self, directive_name: str, language_module: ModuleType, document: nodes.document) -> Tuple[Optional[Type[Directive]], List[system_message]]:  # NOQA
-        return NoopDirective(), []
+        return NoopDirective, []
 
     def role(self, role_name: str, language_module: ModuleType, lineno: int, reporter: Reporter) -> Tuple[RoleFunction, List[system_message]]:  # NOQA
         return NoopRole(), []
