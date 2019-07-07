@@ -25,7 +25,6 @@ from sphinx.deprecation import (
 )
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
-from sphinx.domains.glossary import Glossary
 from sphinx.errors import NoUri
 from sphinx.locale import _, __
 from sphinx.roles import XRefRole
@@ -365,7 +364,6 @@ class StandardDomain(Domain):
         'cmdoption': Cmdoption,  # old name for backwards compatibility
         'option': Cmdoption,
         'envvar': EnvVar,
-        'glossary': Glossary,
         'productionlist': ProductionList,
     }  # type: Dict[str, Type[Directive]]
     roles = {
@@ -873,6 +871,8 @@ class StandardDomain(Domain):
         warnings.warn('StandardDomain.note_labels() is deprecated.',
                       RemovedInSphinx40Warning)
 
+
+from sphinx.domains.glossary import Glossary  # NOQA
 
 deprecated_alias('sphinx.domains.std',
                  {

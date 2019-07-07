@@ -10,8 +10,8 @@
 
 import re
 import unicodedata
+from typing import Any, Dict, Generator, Iterable, List, Tuple
 from typing import cast
-from typing import Iterable, List, Tuple
 
 from docutils import nodes
 from docutils.nodes import Node
@@ -19,10 +19,19 @@ from docutils.parsers.rst import directives
 from docutils.statemachine import StringList
 
 from sphinx import addnodes
-from sphinx.environment import BuildEnvironment
-from sphinx.locale import _
+from sphinx.domains import Domain
+from sphinx.locale import _, __
+from sphinx.util import logging
 from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import make_id
+
+if False:
+    # For type annotation
+    from sphinx.application import Sphinx
+    from sphinx.environment import BuildEnvironment
+
+
+logger = logging.getLogger(__name__)
 
 
 def split_term_classifiers(s: str) -> Tuple[str, List[str]]:
@@ -31,8 +40,8 @@ def split_term_classifiers(s: str) -> Tuple[str, List[str]]:
     return parts[0], parts[1:]
 
 
-def make_glossary_term(env: BuildEnvironment, textnodes: Iterable[Node], index_key: str,
-                       source: str, lineno: int, node_id: str = None, rawsource: str = None,
+def make_glossary_term(env: "BuildEnvironment", textnodes: Iterable[Node], index_key: str,
+                       source: str, lineno: int, rawsource: str, node_id: str = None,
                        document: nodes.document = None) -> nodes.term:
     # get a text-only representation of the term and register it
     # as a cross-reference target
@@ -49,9 +58,8 @@ def make_glossary_term(env: BuildEnvironment, textnodes: Iterable[Node], index_k
         term['ids'].append(node_id)
         document.note_explicit_target(term)
 
-    from sphinx.domains.std import StandardDomain  # RemovedInSphinx40Warning
-    std = cast(StandardDomain, env.get_domain('std'))
-    std.add_object('term', termtext.lower(), env.docname, node_id)
+    glossary = cast(GlossaryDomain, env.get_domain('glossary'))
+    glossary.note_term(term)
 
     # add an index entry too
     indexnode = addnodes.index()
@@ -181,3 +189,48 @@ class Glossary(SphinxDirective):
         dlist.extend(item[1] for item in items)
         node += dlist
         return messages + [node]
+
+
+class GlossaryDomain(Domain):
+    """Glossary domain."""
+    name = 'glossary'
+    label = 'glossary'
+
+    @property
+    def terms(self) -> Dict[str, Tuple[str, str]]:
+        return self.data.setdefault('terms', {})  # term -> (docname, node_id)
+
+    def note_term(self, node: nodes.term) -> None:
+        name = node.astext()
+        if name in self.terms:
+            other = self.terms[name]
+            logger.warning(__('duplicate term of glossary %s, other instance in %s') %
+                           (name, other), location=node)
+
+        self.terms[name] = (self.env.docname, node['ids'][0])
+
+    def clear_doc(self, docname: str) -> None:
+        for name, (doc, node_id) in list(self.terms.items()):
+            if doc == docname:
+                del self.terms[name]
+
+    def merge_domaindata(self, docnames: Iterable[str], otherdata: Dict) -> None:
+        for name, (doc, node_id) in otherdata['terms'].items():
+            if doc in docnames:
+                self.terms[name] = (doc, node_id)
+
+    def get_objects(self) -> Generator[Tuple[str, str, str, str, str, int], None, None]:
+        for name, (docname, node_id) in self.terms.items():
+            yield name, name, 'term', docname, node_id, -1
+
+
+def setup(app: "Sphinx") -> Dict[str, Any]:
+    app.add_domain(GlossaryDomain)
+    app.add_directive('glossary', Glossary)
+
+    return {
+        'version': 'builtin',
+        'env_version': 1,
+        'parallel_read_safe': True,
+        'parallel_write_safe': True,
+    }

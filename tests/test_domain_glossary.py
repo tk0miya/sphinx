@@ -64,7 +64,7 @@ def test_glossary(app):
                 [definition, nodes.paragraph, "description"])
 
     # index
-    objects = list(app.env.get_domain("std").get_objects())
+    objects = list(app.env.get_domain("glossary").get_objects())
     assert ("term1", "term1", "term", "index", "term-term1", -1) in objects
     assert ("term2", "term2", "term", "index", "term-term2", -1) in objects
     assert ("term3", "term3", "term", "index", "term-term3", -1) in objects
@@ -146,7 +146,7 @@ def test_glossary_comment2(app):
                 [definition, nodes.paragraph, "description"])
     assert_node(doctree[0][0][1][1],
                 [definition, nodes.paragraph, ("description\n"
-                                                     "description")])
+                                               "description")])
 
 
 @pytest.mark.sphinx(testroot='basic')
@@ -184,9 +184,9 @@ def test_glossary_alphanumeric(app):
             "   1\n"
             "   /\n")
     restructuredtext.parse(app, text)
-    objects = list(app.env.get_domain("std").get_objects())
-    assert ("1", "1", "term", "index", "term-1", -1) in objects
-    assert ("/", "/", "term", "index", "term-0", -1) in objects
+    terms = app.env.get_domain("glossary").terms
+    assert terms["1"] == ("index", "term-1")
+    assert terms["/"] == ("index", "term-0")
 
 
 @pytest.mark.sphinx(testroot='basic')
@@ -196,5 +196,5 @@ def test_glossary_conflicted_labels(app):
             "\n"
             "   foo\n")
     restructuredtext.parse(app, text)
-    objects = list(app.env.get_domain("std").get_objects())
-    assert ("foo", "foo", "term", "index", "term-0", -1) in objects
+    terms = app.env.get_domain("glossary").terms
+    assert terms["foo"] == ("index", "term-0")

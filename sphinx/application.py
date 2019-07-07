@@ -84,6 +84,7 @@ builtin_extensions = (
     'sphinx.domains.changeset',
     'sphinx.domains.citation',
     'sphinx.domains.cpp',
+    'sphinx.domains.glossary',
     'sphinx.domains.index',
     'sphinx.domains.javascript',
     'sphinx.domains.math',
