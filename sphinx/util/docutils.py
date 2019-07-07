@@ -12,7 +12,7 @@ import os
 import re
 import types
 import warnings
-from contextlib import contextmanager
+from contextlib import ContextDecorator, contextmanager
 from copy import copy
 from distutils.version import LooseVersion
 from os import path
@@ -29,7 +29,7 @@ from docutils.parsers.rst.states import Inliner
 from docutils.statemachine import StateMachine, State, StringList
 from docutils.utils import Reporter, unescape
 
-from sphinx.deprecation import RemovedInSphinx30Warning
+from sphinx.deprecation import RemovedInSphinx30Warning, RemovedInSphinx40Warning
 from sphinx.errors import ExtensionError, SphinxError
 from sphinx.locale import __
 from sphinx.util import logging
@@ -171,35 +171,48 @@ def patch_docutils(confdir: str = None) -> Generator[None, None, None]:
         yield
 
 
+class RestructuredTextDispatcher(ContextDecorator):
+    """A base class of dispatcher of reStructuredText parser.
+
+    This can replace a dispatcher of reST parser to inject its own directives and roles.
+    """
+    def __init__(self) -> None:
+        self.original_directives = None  # type: Callable
+        self.original_roles = None  # type: Callable
+
+    def __enter__(self) -> None:
+        self.original_directives = directives.directive
+        self.original_roles = roles.role
+
+        directives.directive = self.directive
+        roles.role = self.role
+
+    def __exit__(self, exc_type: "Type[Exception]", exc_value: Exception, traceback: Any) -> None:  # NOQA
+        directives.directive = self.original_directives
+        roles.role = self.original_roles
+        return False
+
+    def directive(self, directive_name: str, language_module: ModuleType,
+                  document: nodes.document
+                  ) -> Tuple[Optional[Type[Directive]], List[system_message]]:
+        raise NotImplementedError
+
+    def role(self, role_name: str, language_module: ModuleType, lineno: int, reporter: Reporter
+             ) -> Tuple[RoleFunction, List[system_message]]:
+        raise NotImplementedError
+
+
 class ElementLookupError(Exception):
     pass
 
 
-class sphinx_domains:
+class sphinx_domains(RestructuredTextDispatcher):
     """Monkey-patch directive and role dispatch, so that domain-specific
     markup takes precedence.
     """
     def __init__(self, env: "BuildEnvironment") -> None:
         self.env = env
-        self.directive_func = None  # type: Callable
-        self.roles_func = None  # type: Callable
-
-    def __enter__(self) -> None:
-        self.enable()
-
-    def __exit__(self, exc_type: "Type[Exception]", exc_value: Exception, traceback: Any) -> None:  # NOQA
-        self.disable()
-
-    def enable(self) -> None:
-        self.directive_func = directives.directive
-        self.role_func = roles.role
-
-        directives.directive = self.lookup_directive
-        roles.role = self.lookup_role
-
-    def disable(self) -> None:
-        directives.directive = self.directive_func
-        roles.role = self.role_func
+        super().__init__()
 
     def lookup_domain_element(self, type: str, name: str) -> Any:
         """Lookup a markup element (directive or role), given its name which can
@@ -229,17 +242,34 @@ class sphinx_domains:
 
         raise ElementLookupError
 
-    def lookup_directive(self, directive_name: str, language_module: ModuleType, document: nodes.document) -> Tuple[Optional["Type[Directive]"], List[system_message]]:  # NOQA
+    def directive(self, directive_name: str, language_module: ModuleType,
+                  document: nodes.document
+                  ) -> Tuple[Optional["Type[Directive]"], List[system_message]]:
         try:
             return self.lookup_domain_element('directive', directive_name)
         except ElementLookupError:
-            return self.directive_func(directive_name, language_module, document)
+            return self.original_directives(directive_name, language_module, document)
 
-    def lookup_role(self, role_name: str, language_module: ModuleType, lineno: int, reporter: Reporter) -> Tuple[RoleFunction, List[system_message]]:  # NOQA
+    def role(self, role_name: str, language_module: ModuleType, lineno: int, reporter: Reporter
+             ) -> Tuple[RoleFunction, List[system_message]]:
         try:
             return self.lookup_domain_element('role', role_name)
         except ElementLookupError:
-            return self.role_func(role_name, language_module, lineno, reporter)
+            return self.original_roles(role_name, language_module, lineno, reporter)
+
+    def lookup_directive(self, directive_name: str, language_module: ModuleType,
+                         document: nodes.document
+                         ) -> Tuple[Optional[Type[Directive]], List[system_message]]:
+        warnings.warn('sphinx_domain.lookup_directive() is deprecated',
+                      RemovedInSphinx40Warning)
+        return self.directive(directive_name, language_module, document)
+
+    def lookup_role(self, role_name: str, language_module: ModuleType,
+                    lineno: int, reporter: Reporter
+                    ) -> Tuple[RoleFunction, List[system_message]]:
+        warnings.warn('sphinx_domain.lookup_directive() is deprecated',
+                      RemovedInSphinx40Warning)
+        return self.role(role_name, language_module, lineno, reporter)
 
 
 class WarningStream:

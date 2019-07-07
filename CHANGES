@@ -240,6 +240,8 @@ Deprecated
 * ``sphinx.ext.todo.process_todo_nodes()``
 * ``sphinx.ext.todo.process_todos()``
 * ``sphinx.ext.todo.purge_todos()``
+* ``sphinx.util.docutils.sphinx_domain.lookup_directive()``
+* ``sphinx.util.docutils.sphinx_domain.lookup_role()``
 
 Features added
 --------------

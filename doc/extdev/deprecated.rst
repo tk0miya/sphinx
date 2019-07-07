@@ -168,6 +168,16 @@ The following is a list of deprecated interfaces.
      - 4.0
      - ``sphinx.ext.todo.TodoDomain``
 
+   * - ``sphinx.util.docutils.sphinx_domain.lookup_directive()``
+     - 2.2
+     - 4.0
+     - ``sphinx.util.docutils.sphinx_domain.directive()``
+
+   * - ``sphinx.util.docutils.sphinx_domain.lookup_role()``
+     - 2.2
+     - 4.0
+     - ``sphinx.util.docutils.sphinx_domain.role()``
+
    * - ``sphinx.builders.latex.LaTeXBuilder.apply_transforms()``
      - 2.1
      - 4.0
