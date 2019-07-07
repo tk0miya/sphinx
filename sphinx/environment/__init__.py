@@ -16,6 +16,7 @@ from copy import copy
 from io import BytesIO
 from os import path
 from typing import Any, Callable, Dict, Generator, IO, Iterator, List, Set, Tuple, Union
+from typing import cast
 
 from docutils import nodes
 from docutils.nodes import Node
@@ -26,6 +27,7 @@ from sphinx.deprecation import (
     RemovedInSphinx30Warning, RemovedInSphinx40Warning, deprecated_alias
 )
 from sphinx.domains import Domain
+from sphinx.domains.std import StandardDomain
 from sphinx.environment.adapters.toctree import TocTree
 from sphinx.errors import SphinxError, BuildEnvironmentError, DocumentError, ExtensionError
 from sphinx.events import EventManager
@@ -493,6 +495,18 @@ class BuildEnvironment:
     def note_reread(self) -> None:
         """Add the current document to the list of documents that will
         automatically be re-read at the next build.
+        """
+        self.reread_always.add(self.docname)
+
+    def note_hyperlink_target(self, name: str, node_id: str, title: str = None,
+                              docname: str = None) -> None:
+        """Add a hyperlink target to the document directly.
+
+        :param name: name of the hyperlink target
+        :param node_id: node_id of the hyperlink target
+        :param title: title of the hyperlink target (optional)
+        :param docname: docname where the hyperlink is in.
+                        By default, current docname is used.
         """
         self.reread_always.add(self.docname)
 

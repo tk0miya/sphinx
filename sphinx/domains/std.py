@@ -551,6 +551,13 @@ class StandardDomain(Domain):
     def anonlabels(self) -> Dict[str, Tuple[str, str]]:
         return self.data.setdefault('anonlabels', {})  # labelname -> docname, labelid
 
+    def note_hyperlink_target(self, target: str, title: str = None, docname: str = None
+                              ) -> None:
+        if docname is None:
+            docname = self.env.docname
+
+        self.anonlabels[target] = (docname, 
+
     def clear_doc(self, docname: str) -> None:
         key = None  # type: Any
         for key, (fn, _l) in list(self.progoptions.items()):
