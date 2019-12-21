@@ -523,22 +523,22 @@ class LaTeXTranslator(SphinxTranslator):
 
         if self.config.numfig:
             self.numfig_secnum_depth = self.config.numfig_secnum_depth
-            if self.numfig_secnum_depth > 0:  # default is 1
-                # numfig_secnum_depth as passed to sphinx.sty indices same names as in
-                # LATEXSECTIONNAMES but with -1 for part, 0 for chapter, 1 for section...
-                if len(self.sectionnames) < len(LATEXSECTIONNAMES) and \
-                   self.top_sectionlevel > 0:
-                    self.numfig_secnum_depth += self.top_sectionlevel
-                else:
-                    self.numfig_secnum_depth += self.top_sectionlevel - 1
-                # this (minus one) will serve as minimum to LaTeX's secnumdepth
-                self.numfig_secnum_depth = min(self.numfig_secnum_depth,
-                                               len(LATEXSECTIONNAMES) - 1)
-                # if passed key value is < 1 LaTeX will act as if 0; see sphinx.sty
-                self.elements['sphinxpkgoptions'] += \
-                    (',numfigreset=%s' % self.numfig_secnum_depth)
-            else:
+            if self.numfig_secnum_depth == 0:  # disabled
                 self.elements['sphinxpkgoptions'] += ',nonumfigreset'
+            else:
+                # numfigreset indicates reset timing of numfig counters
+                #   numfigreset <= 0: reset numfig after each part
+                #   numfigreset  = 1: reset numfig after each part and chapter
+                #   numfigreset  = 2: reset numfig after each part, chapter and section
+                #   ...
+                sectioning_unit = self.sectionnames[self.top_sectionlevel]
+                self.numfig_secnum_depth += LATEXSECTIONNAMES.index(sectioning_unit) - 1
+                if self.numfig_secnum_depth >= len(LATEXSECTIONNAMES):
+                    # this (minus one) will serve as minimum to LaTeX's secnumdepth
+                    self.num_threads = len(LATEXSECTIONNAMES) - 1
+                self.elements['sphinxpkgoptions'] += (',numfigreset=%s' %
+                                                      self.numfig_secnum_depth)
+
             try:
                 if self.config.math_numfig:
                     self.elements['sphinxpkgoptions'] += ',mathnumfig'
