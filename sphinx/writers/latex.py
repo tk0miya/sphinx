@@ -539,11 +539,8 @@ class LaTeXTranslator(SphinxTranslator):
                 self.elements['sphinxpkgoptions'] += (',numfigreset=%s' %
                                                       self.numfig_secnum_depth)
 
-            try:
-                if self.config.math_numfig:
-                    self.elements['sphinxpkgoptions'] += ',mathnumfig'
-            except AttributeError:
-                pass
+        if self.config.numfig and self.config.math_numfig:
+            self.elements['sphinxpkgoptions'] += ',mathnumfig'
 
         if (self.config.language not in {None, 'en', 'ja'} and
                 'fncychap' not in self.config.latex_elements):
