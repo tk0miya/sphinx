@@ -603,10 +603,8 @@ class LaTeXTranslator(SphinxTranslator):
             #   tocdepth =  1: show parts, chapters and sections
             #   tocdepth =  2: show parts, chapters, sections and subsections
             #   ...
-            tocdepth = self.document['tocdepth'] + self.top_sectionlevel - 2
-            if len(self.sectionnames) < len(LATEXSECTIONNAMES) and \
-               self.top_sectionlevel > 0:
-                tocdepth += 1  # because top_sectionlevel is shifted by -1
+            sectioning_unit = self.sectionnames[self.top_sectionlevel]
+            tocdepth = self.document['tocdepth'] + LATEXSECTIONNAMES.index(sectioning_unit) - 2
             if tocdepth > len(LATEXSECTIONNAMES) - 2:  # default is 5 <-> subparagraph
                 logger.warning(__('too large :maxdepth:, ignored.'))
                 tocdepth = len(LATEXSECTIONNAMES) - 2
