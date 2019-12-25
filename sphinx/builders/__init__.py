@@ -618,3 +618,47 @@ class Builder:
         except AttributeError:
             optname = '%s_%s' % (default, option)
             return getattr(self.config, optname)
+
+
+class BuilderCollection:
+    """Collection of builders."""
+    def __init__(self) -> None:
+        self.builders = []  # type: List[Builder]
+
+    def __getitem__(self, key: int) -> Builder:
+        """Get a builder from collection."""
+        return self.builders[key]
+
+    def append(self, builder: Builder) -> None:
+        """Append a new builder to collection."""
+        self.builders.append(builder)
+
+    def setup(self, app: "Sphinx") -> None:
+        """Set up builders."""
+        for builder in self.builders:
+            builder.set_environment(app.env)
+            builder.init()
+
+    def build_all(self) -> None:
+        """Build all source files."""
+        for builder in self.builders:
+            builder.build_all()
+
+    def build_specific(self, filenames: List[str]) -> None:
+        """Only rebuild as much as needed for changes in the *filenames*."""
+        for builder in self.builders:
+            builder.build_specific(filenames)
+
+    def build_update(self) -> None:
+        """Only rebuild what was changed or added since last build."""
+        for builder in self.builders:
+            builder.build_update()
+
+    def cleanup(self) -> None:
+        """Cleanup any resources."""
+        for builder in self.builders:
+            builder.cleanup()
+
+    @property
+    def epilog(self) -> List[str]:
+        return [b.epilog for b in self.builders if b.epilog]

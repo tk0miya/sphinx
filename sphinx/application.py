@@ -29,6 +29,7 @@ from pygments.lexer import Lexer
 
 import sphinx
 from sphinx import package_dir, locale
+from sphinx.builders import Builder, BuilderCollection
 from sphinx.config import Config
 from sphinx.deprecation import (
     RemovedInSphinx30Warning, RemovedInSphinx40Warning, deprecated_alias
@@ -61,7 +62,6 @@ if False:
     # For type annotation
     from docutils.nodes import Node  # NOQA
     from typing import Type  # for python3.5.1
-    from sphinx.builders import Builder
 
 
 builtin_extensions = (
@@ -147,7 +147,7 @@ class Sphinx:
         self.phase = BuildPhase.INITIALIZATION
         self.verbosity = verbosity
         self.extensions = {}                    # type: Dict[str, Extension]
-        self.builder = None                     # type: Builder
+        self.builders = BuilderCollection()
         self.env = None                         # type: BuildEnvironment
         self.project = None                     # type: Project
         self.registry = SphinxComponentRegistry()
@@ -271,7 +271,7 @@ class Sphinx:
         # create the project
         self.project = Project(self.srcdir, self.config.source_suffix)
         # create the builder
-        self.builder = self.create_builder(buildername)
+        self.builders.append(self.create_builder(buildername))
         # set up the build environment
         self._init_env(freshenv)
         # set up the builder
@@ -321,7 +321,7 @@ class Sphinx:
     def preload_builder(self, name: str) -> None:
         self.registry.preload_builder(self, name)
 
-    def create_builder(self, name: str) -> "Builder":
+    def create_builder(self, name: str) -> Builder:
         if name is None:
             logger.info(__('No builder selected, using default: html'))
             name = 'html'
@@ -329,9 +329,16 @@ class Sphinx:
         return self.registry.create_builder(self, name)
 
     def _init_builder(self) -> None:
-        self.builder.set_environment(self.env)
-        self.builder.init()
+        self.builders.setup(self)
         self.events.emit('builder-inited')
+
+    @property
+    def builder(self) -> Builder:
+        """Get current builder."""
+        try:
+            return self.builders[0]
+        except IndexError:
+            return None  # return None if not initialized
 
     # ---- main "build" method -------------------------------------------------
 
@@ -340,13 +347,13 @@ class Sphinx:
         try:
             if force_all:
                 self.builder.compile_all_catalogs()
-                self.builder.build_all()
+                self.builders.build_all()
             elif filenames:
                 self.builder.compile_specific_catalogs(filenames)
-                self.builder.build_specific(filenames)
+                self.builders.build_specific(filenames)
             else:
-                self.builder.compile_update_catalogs()
-                self.builder.build_update()
+                self.builders[0].compile_update_catalogs()
+                self.builders.build_update()
 
             if self._warncount and self.keep_going:
                 self.statuscode = 1
@@ -367,12 +374,13 @@ class Sphinx:
             else:
                 logger.info(bold(__('build %s.') % status))
 
-            if self.statuscode == 0 and self.builder.epilog:
+            if self.statuscode == 0 and self.builders.epilog:
                 logger.info('')
-                logger.info(self.builder.epilog % {
-                    'outdir': relpath(self.outdir),
-                    'project': self.config.project
-                })
+                for epilog in self.builders.epilog:
+                    logger.info(epilog % {
+                        'outdir': relpath(self.outdir),
+                        'project': self.config.project
+                    })
         except Exception as err:
             # delete the saved env to force a fresh build next time
             envfile = path.join(self.doctreedir, ENV_PICKLE_FILENAME)
@@ -382,7 +390,7 @@ class Sphinx:
             raise
         else:
             self.events.emit('build-finished', None)
-        self.builder.cleanup()
+        self.builders.cleanup()
 
     # ---- general extensibility interface -------------------------------------
 
@@ -1209,7 +1217,7 @@ class TemplateBridge:
     that renders templates given a template name and a context.
     """
 
-    def init(self, builder: "Builder", theme: Theme = None, dirs: List[str] = None) -> None:
+    def init(self, builder: Builder, theme: Theme = None, dirs: List[str] = None) -> None:
         """Called by the builder to initialize the template system.
 
         *builder* is the builder object; you'll probably want to look at the
