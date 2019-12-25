@@ -30,6 +30,7 @@ from pygments.lexer import Lexer
 import sphinx
 from sphinx import package_dir, locale
 from sphinx.builders import Builder, BuilderCollection
+from sphinx.builders.message_catalog import MessageCatalogCompiler
 from sphinx.config import Config
 from sphinx.deprecation import (
     RemovedInSphinx30Warning, RemovedInSphinx40Warning, deprecated_alias
@@ -271,6 +272,7 @@ class Sphinx:
         # create the project
         self.project = Project(self.srcdir, self.config.source_suffix)
         # create the builder
+        self.builders.append(MessageCatalogCompiler(self))
         self.builders.append(self.create_builder(buildername))
         # set up the build environment
         self._init_env(freshenv)
@@ -336,7 +338,7 @@ class Sphinx:
     def builder(self) -> Builder:
         """Get current builder."""
         try:
-            return self.builders[0]
+            return self.builders[1]
         except IndexError:
             return None  # return None if not initialized
 
@@ -346,13 +348,10 @@ class Sphinx:
         self.phase = BuildPhase.READING
         try:
             if force_all:
-                self.builder.compile_all_catalogs()
                 self.builders.build_all()
             elif filenames:
-                self.builder.compile_specific_catalogs(filenames)
                 self.builders.build_specific(filenames)
             else:
-                self.builders[0].compile_update_catalogs()
                 self.builders.build_update()
 
             if self._warncount and self.keep_going:

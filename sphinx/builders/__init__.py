@@ -10,13 +10,16 @@
 
 import pickle
 import time
+import warnings
 from os import path
 from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple, Union
 
 from docutils import nodes
 from docutils.nodes import Node
 
+from sphinx.builders.message_catalog import MessageCatalogCompiler
 from sphinx.config import Config
+from sphinx.deprecation import RemovedInSphinx40Warning
 from sphinx.environment import BuildEnvironment, CONFIG_OK, CONFIG_CHANGED_REASON
 from sphinx.environment.adapters.asset import ImageAdapter
 from sphinx.errors import SphinxError
@@ -210,6 +213,9 @@ class Builder:
     # compile po methods
 
     def compile_catalogs(self, catalogs: Set[CatalogInfo], message: str) -> None:
+        warnings.warn('Builder.compile_catalogs() is deprecated.',
+                      RemovedInSphinx40Warning)
+
         if not self.config.gettext_auto_build:
             return
 
@@ -223,35 +229,22 @@ class Builder:
             catalog.write_mo(self.config.language)
 
     def compile_all_catalogs(self) -> None:
-        repo = CatalogRepository(self.srcdir, self.config.locale_dirs,
-                                 self.config.language, self.config.source_encoding)
-        message = __('all of %d po files') % len(list(repo.catalogs))
-        self.compile_catalogs(set(repo.catalogs), message)
+        warnings.warn('Builder.compile_all_catalogs() is deprecated.',
+                      RemovedInSphinx40Warning)
+        compiler = MessageCatalogCompiler(self.app)
+        compiler.build_all()
 
-    def compile_specific_catalogs(self, specified_files: List[str]) -> None:
-        def to_domain(fpath: str) -> str:
-            docname = self.env.path2doc(path.abspath(fpath))
-            if docname:
-                return docname_to_domain(docname, self.config.gettext_compact)
-            else:
-                return None
-
-        catalogs = set()
-        domains = set(map(to_domain, specified_files))
-        repo = CatalogRepository(self.srcdir, self.config.locale_dirs,
-                                 self.config.language, self.config.source_encoding)
-        for catalog in repo.catalogs:
-            if catalog.domain in domains and catalog.is_outdated():
-                catalogs.add(catalog)
-        message = __('targets for %d po files that are specified') % len(catalogs)
-        self.compile_catalogs(catalogs, message)
+    def compile_specific_catalogs(self, filenames: List[str]) -> None:
+        warnings.warn('Builder.compile_specific_catalogs() is deprecated.',
+                      RemovedInSphinx40Warning)
+        compiler = MessageCatalogCompiler(self.app)
+        compiler.build_specific(filenames)
 
     def compile_update_catalogs(self) -> None:
-        repo = CatalogRepository(self.srcdir, self.config.locale_dirs,
-                                 self.config.language, self.config.source_encoding)
-        catalogs = {c for c in repo.catalogs if c.is_outdated()}
-        message = __('targets for %d po files that are out of date') % len(catalogs)
-        self.compile_catalogs(catalogs, message)
+        warnings.warn('Builder.compile_update_catalogs() is deprecated.',
+                      RemovedInSphinx40Warning)
+        compiler = MessageCatalogCompiler(self.app)
+        compiler.build_update()
 
     # build methods
 
