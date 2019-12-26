@@ -30,6 +30,7 @@ from docutils.statemachine import StateMachine, State, StringList
 from docutils.utils import Reporter, unescape
 
 from sphinx.deprecation import RemovedInSphinx30Warning, RemovedInSphinx40Warning
+from sphinx.domains import Domain
 from sphinx.errors import ExtensionError, SphinxError
 from sphinx.locale import __
 from sphinx.util import logging
@@ -242,20 +243,43 @@ class sphinx_domains(RestructuredTextDispatcher):
 
         raise ElementLookupError
 
+    def get_domains(self, name: str) -> List[Domain]:
+        if ':' in name:
+            domain_name = name.split(':', 1)[0]
+            domain = self.env.get_domain(domain_name)
+        else:
+            domain = self.env.temp_data.get('default_domain')
+
+        return [domain, self.env.get_domain('std')]
+
     def directive(self, directive_name: str, language_module: ModuleType,
                   document: nodes.document
                   ) -> Tuple[Optional["Type[Directive]"], List[system_message]]:
-        try:
-            return self.lookup_domain_element('directive', directive_name)
-        except ElementLookupError:
-            return self.original_directives(directive_name, language_module, document)
+        if ':' in directive_name:
+            domain_name, directive_name = directive_name.split(':', 1)
+        else:
+            domain_name = None
+
+        for domain in self.get_domains(domain_name):
+            directive = domain.directive(directive_name)
+            if directive:
+                return directive, []
+
+        return self.original_directives(directive_name, language_module, document)
 
     def role(self, role_name: str, language_module: ModuleType, lineno: int, reporter: Reporter
              ) -> Tuple[RoleFunction, List[system_message]]:
-        try:
-            return self.lookup_domain_element('role', role_name)
-        except ElementLookupError:
-            return self.original_roles(role_name, language_module, lineno, reporter)
+        if ':' in role_name:
+            domain_name, role_name = role_name.split(':', 1)
+        else:
+            domain_name = None
+
+        for domain in self.get_domains(domain_name):
+            role = domain.role(role_name)
+            if role:
+                return role, []
+
+        return self.original_roles(role_name, language_module, lineno, reporter)
 
     def lookup_directive(self, directive_name: str, language_module: ModuleType,
                          document: nodes.document
