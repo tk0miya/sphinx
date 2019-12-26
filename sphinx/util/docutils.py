@@ -30,7 +30,6 @@ from docutils.statemachine import StateMachine, State, StringList
 from docutils.utils import Reporter, unescape
 
 from sphinx.deprecation import RemovedInSphinx30Warning, RemovedInSphinx40Warning
-from sphinx.domains import Domain
 from sphinx.errors import ExtensionError, SphinxError
 from sphinx.locale import __
 from sphinx.util import logging
@@ -44,6 +43,7 @@ if False:
     from typing import Type  # for python3.5.1
     from sphinx.builders import Builder
     from sphinx.config import Config
+    from sphinx.domains import Domain
     from sphinx.environment import BuildEnvironment
 
 
@@ -195,7 +195,7 @@ class RestructuredTextDispatcher(ContextDecorator):
 
     def directive(self, directive_name: str, language_module: ModuleType,
                   document: nodes.document
-                  ) -> Tuple[Optional[Type[Directive]], List[system_message]]:
+                  ) -> Tuple[Optional["Type[Directive]"], List[system_message]]:
         raise NotImplementedError
 
     def role(self, role_name: str, language_module: ModuleType, lineno: int, reporter: Reporter
@@ -243,7 +243,7 @@ class sphinx_domains(RestructuredTextDispatcher):
 
         raise ElementLookupError
 
-    def get_domains(self, name: str) -> List[Domain]:
+    def get_domains(self, name: str) -> List["Domain"]:
         if ':' in name:
             domain_name = name.split(':', 1)[0]
             domain = self.env.get_domain(domain_name)
@@ -283,7 +283,7 @@ class sphinx_domains(RestructuredTextDispatcher):
 
     def lookup_directive(self, directive_name: str, language_module: ModuleType,
                          document: nodes.document
-                         ) -> Tuple[Optional[Type[Directive]], List[system_message]]:
+                         ) -> Tuple[Optional["Type[Directive]"], List[system_message]]:
         warnings.warn('sphinx_domain.lookup_directive() is deprecated',
                       RemovedInSphinx40Warning)
         return self.directive(directive_name, language_module, document)
