@@ -301,16 +301,13 @@ class Glossary(SphinxDirective):
     }
 
     def run(self) -> List[Node]:
-        node = addnodes.glossary()
-        node.document = self.state.document
-
         # This directive implements a custom format of the reST definition list
         # that allows multiple lines of terms before the definition.  This is
         # easy to parse since we know that the contents of the glossary *must
         # be* a definition list.
 
         # first, collect single entries
-        entries = []  # type: List[Tuple[List[Tuple[str, str, int]], StringList]]
+        entries = []  # type: List[Tuple[List[node.term], StringList]]
         in_definition = True
         in_comment = False
         was_empty = True
@@ -335,7 +332,9 @@ class Glossary(SphinxDirective):
                     if not was_empty:
                         logger.warning(__('glossary term must be preceded by empty line'),
                                        location=(source, lineno))
-                    entries.append(([(line, source, lineno)], StringList()))
+
+                    term = self.parse_term_definition(line, source, lineno)
+                    entries.append(([term], StringList()))
                     in_definition = False
                 # second term and following
                 else:
@@ -344,7 +343,8 @@ class Glossary(SphinxDirective):
                                           'by empty lines'),
                                        location=(source, lineno))
                     if entries:
-                        entries[-1][0].append((line, source, lineno))
+                        term = self.parse_term_definition(line, source, lineno)
+                        entries[-1][0].append(term)
                     else:
                         logger.warning(__('glossary seems to be misformatted, '
                                           'check indentation'),
@@ -366,29 +366,20 @@ class Glossary(SphinxDirective):
         # now, parse all the entries into a big definition list
         items = []
         for terms, definition in entries:
-            termtexts = []          # type: List[str]
-            termnodes = []          # type: List[nodes.Node]
-            for line, source, lineno in terms:
-                term = self.parse_term_definition(line, source, lineno)
-                termtexts.append(term.astext())
-                termnodes.append(term)
+            item = nodes.definition_list_item('', *terms)
+            item += nodes.definition()
 
-            defnode = nodes.definition()
             if definition:
                 self.state.nested_parse(definition, definition.items[0][1],
-                                        defnode)
-            termnodes.append(defnode)
-            items.append((termtexts,
-                          nodes.definition_list_item('', *termnodes)))
+                                        item[-1])
+            items.append(item)
 
         if 'sorted' in self.options:
-            items.sort(key=lambda x:
-                       unicodedata.normalize('NFD', x[0][0].lower()))
+            # Sort glossary entries with first title of each term
+            items.sort(key=lambda x: unicodedata.normalize('NFD', x[0].astext().lower()))
 
-        dlist = nodes.definition_list()
-        dlist['classes'].append('glossary')
-        dlist.extend(item[1] for item in items)
-        node += dlist
+        dlist = nodes.definition_list('', *items, classes=['glossary'])
+        node = addnodes.glossary('', dlist)
         return [node]
 
     def parse_term_definition(self, line: str, source: str, lineno: int) -> nodes.term:
