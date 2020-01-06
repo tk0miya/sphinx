@@ -152,7 +152,6 @@ class Glossary(SphinxDirective):
     def run(self):
         # type: () -> List[nodes.Node]
         items, messages = self.parse(self.content)
-        #items = self.build(entries)
 
         node = addnodes.glossary()
         node.document = self.state.document
@@ -227,40 +226,3 @@ class Glossary(SphinxDirective):
             was_empty = False
 
         return entries, messages
-
-    def build(self, entries):
-        # type: (List[Tuple[List[Tuple[str, str, int]], StringList]]) -> List[nodes.Node]
-        """Parse all the entries and build a definition list."""
-        items = []
-        for terms, definition in entries:
-            termtexts = []          # type: List[str]
-            termnodes = []          # type: List[nodes.Node]
-            system_messages = []    # type: List[nodes.Node]
-            for line, source, lineno in terms:
-                parts = split_term_classifiers(line)
-                # parse the term with inline markup
-                # classifiers (parts[1:]) will not be shown on doctree
-                textnodes, sysmsg = self.state.inline_text(parts[0], lineno)
-
-                # use first classifier as a index key
-                term = make_glossary_term(self.env, textnodes, parts[1], source, lineno)
-                term.rawsource = line
-                system_messages.extend(sysmsg)
-                termtexts.append(term.astext())
-                termnodes.append(term)
-
-            termnodes.extend(system_messages)
-
-            defnode = nodes.definition()
-            if definition:
-                self.state.nested_parse(definition, definition.items[0][1],
-                                        defnode)
-            termnodes.append(defnode)
-            items.append((termtexts,
-                          nodes.definition_list_item('', *termnodes)))
-
-        if 'sorted' in self.options:
-            items.sort(key=lambda x:
-                       unicodedata.normalize('NFD', x[0][0].lower()))
-
-        return [item[1] for item in items]
