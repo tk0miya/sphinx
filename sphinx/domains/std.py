@@ -331,7 +331,7 @@ class Glossary(SphinxDirective):
                 if in_definition:
                     if not was_empty:
                         logger.warning(__('glossary term must be preceded by empty line'),
-                                       location=(source, lineno))
+                                       location=(self.env.docname, lineno))
 
                     term = self.parse_term_definition(line, source, lineno)
                     entries.append(([term], StringList()))
@@ -341,14 +341,14 @@ class Glossary(SphinxDirective):
                     if was_empty:
                         logger.warning(__('glossary terms must not be separated '
                                           'by empty lines'),
-                                       location=(source, lineno))
+                                       location=(self.env.docname, lineno))
                     if entries:
                         term = self.parse_term_definition(line, source, lineno)
                         entries[-1][0].append(term)
                     else:
                         logger.warning(__('glossary seems to be misformatted, '
                                           'check indentation'),
-                                       source=(source, lineno))
+                                       source=(self.env.docname, lineno))
             elif in_comment:
                 pass
             else:
