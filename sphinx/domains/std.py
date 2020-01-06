@@ -313,7 +313,6 @@ class Glossary(SphinxDirective):
         in_definition = True
         in_comment = False
         was_empty = True
-        messages = []  # type: List[Node]
         for line, (source, lineno) in zip(self.content, self.content.items):
             # empty line -> add to last definition
             if not line:
@@ -333,23 +332,22 @@ class Glossary(SphinxDirective):
                 # first term of definition
                 if in_definition:
                     if not was_empty:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary term must be preceded by empty line'),
-                            source=source, line=lineno))
+                        logger.warning(__('glossary term must be preceded by empty line'),
+                                       location=(source, lineno))
                     entries.append(([(line, source, lineno)], StringList()))
                     in_definition = False
                 # second term and following
                 else:
                     if was_empty:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary terms must not be separated by empty lines'),
-                            source=source, line=lineno))
+                        logger.warning(__('glossary terms must not be separated '
+                                          'by empty lines'),
+                                       location=(source, lineno))
                     if entries:
                         entries[-1][0].append((line, source, lineno))
                     else:
-                        messages.append(self.state.reporter.warning(
-                            _('glossary seems to be misformatted, check indentation'),
-                            source=source, line=lineno))
+                        logger.warning(__('glossary seems to be misformatted, '
+                                          'check indentation'),
+                                       source=(source, lineno))
             elif in_comment:
                 pass
             else:
@@ -360,17 +358,15 @@ class Glossary(SphinxDirective):
                 if entries:
                     entries[-1][1].append(line[indent_len:], source, lineno)
                 else:
-                    messages.append(self.state.reporter.warning(
-                        _('glossary seems to be misformatted, check indentation'),
-                        source=source, line=lineno))
+                    logger.warning(__('glossary seems to be misformatted, check indentation'),
+                                   source=(source, lineno))
             was_empty = False
 
         # now, parse all the entries into a big definition list
         items = []
         for terms, definition in entries:
             termtexts = []          # type: List[str]
-            termnodes = []          # type: List[Node]
-            system_messages = []    # type: List[Node]
+            termnodes = []          # type: List[nodes.Node]
             for line, source, lineno in terms:
                 parts = split_term_classifiers(line)
                 # parse the term with inline markup
@@ -381,11 +377,8 @@ class Glossary(SphinxDirective):
                 term = make_glossary_term(self.env, textnodes, parts[1], source, lineno,
                                           document=self.state.document)
                 term.rawsource = line
-                system_messages.extend(sysmsg)
                 termtexts.append(term.astext())
                 termnodes.append(term)
-
-            termnodes.extend(system_messages)
 
             defnode = nodes.definition()
             if definition:
@@ -403,7 +396,7 @@ class Glossary(SphinxDirective):
         dlist['classes'].append('glossary')
         dlist.extend(item[1] for item in items)
         node += dlist
-        return messages + [node]
+        return [node]
 
 
 def token_xrefs(text: str, productionGroup: str = '') -> List[Node]:
