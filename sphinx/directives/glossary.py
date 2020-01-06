@@ -114,8 +114,11 @@ class GlossaryParser:
             # type: (str, int) -> nodes.term
             source, lineno = self.state_machine.get_source_and_line()
             parts = split_term_classifiers(text)
-            textnodes, sysmsg = self.state.inline_text(parts[0], lineno + offset)
-            return None
+            textnodes, sysmsg = self.inline_text(parts[0], lineno + offset)
+            term = make_glossary_term(self.document.settings.env, textnodes,
+                                      parts[1], source, lineno)
+            term.rawsource = text
+            return term
 
     def __init__(self, env, state):
         # type: (BuildEnvironment, RSTState) -> None
@@ -161,8 +164,7 @@ class Glossary(SphinxDirective):
     def parse(self, content):
         parser = GlossaryParser(self.env, self.state)
         doctree = parser.parse(content)
-        for node in doctree.traverse(nodes.term):
-            pass
+        doctree.sort(key=lambda x: unicodedata.normalize('NFD', x[0].astext().lower()))
 
         return doctree, []
 
