@@ -244,12 +244,13 @@ def split_term_classifiers(line: str) -> List[Optional[str]]:
 
 def make_glossary_term(env: "BuildEnvironment", textnodes: Iterable[Node], index_key: str,
                        source: str, lineno: int, node_id: str = None,
-                       document: nodes.document = None) -> nodes.term:
+                       document: nodes.document = None, rawsource: str = None) -> nodes.term:
     # get a text-only representation of the term and register it
     # as a cross-reference target
     term = nodes.term('', '', *textnodes)
     term.source = source
     term.line = lineno
+    term.rawsource = rawsource
     termtext = term.astext()
 
     if node_id:
@@ -368,15 +369,7 @@ class Glossary(SphinxDirective):
             termtexts = []          # type: List[str]
             termnodes = []          # type: List[nodes.Node]
             for line, source, lineno in terms:
-                parts = split_term_classifiers(line)
-                # parse the term with inline markup
-                # classifiers (parts[1:]) will not be shown on doctree
-                textnodes, sysmsg = self.state.inline_text(parts[0], lineno)
-
-                # use first classifier as a index key
-                term = make_glossary_term(self.env, textnodes, parts[1], source, lineno,
-                                          document=self.state.document)
-                term.rawsource = line
+                term = self.parse_term_definition(line, source, lineno)
                 termtexts.append(term.astext())
                 termnodes.append(term)
 
@@ -397,6 +390,20 @@ class Glossary(SphinxDirective):
         dlist.extend(item[1] for item in items)
         node += dlist
         return [node]
+
+    def parse_term_definition(self, line: str, source: str, lineno: int) -> nodes.term:
+        """Parse a definition of glossary term and convert it to a term node."""
+        parts = split_term_classifiers(line)
+
+        # Parse a title of term; text before classifers is considers as a title of term
+        termtext = parts[0]
+        title, sysmsg = self.state.inline_text(termtext, lineno)
+
+        # Create a term node
+        classifier = parts[1]  # use first classifier as a index key
+        term = make_glossary_term(self.env, title, classifier, source, lineno,
+                                  document=self.state.document, rawsource=line)
+        return term
 
 
 def token_xrefs(text: str, productionGroup: str = '') -> List[Node]:
