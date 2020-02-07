@@ -8,7 +8,7 @@
     :license: BSD, see LICENSE for details.
 """
 
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Tuple
 from typing import cast
 
 from docutils import nodes
@@ -20,7 +20,7 @@ from sphinx.addnodes import desc_signature, pending_xref
 from sphinx.application import Sphinx
 from sphinx.builders import Builder
 from sphinx.directives import ObjectDescription
-from sphinx.domains import Domain, ObjType
+from sphinx.domains import Domain, Index, IndexEntry, ObjType
 from sphinx.domains.python import _pseudo_parse_arglist
 from sphinx.environment import BuildEnvironment
 from sphinx.locale import _, __
@@ -298,6 +298,36 @@ class JSModule(SphinxDirective):
         return 'module-' + modname
 
 
+class JavaScriptModuleIndex(Index):
+    """
+    Index subclass to provide the JavaScript module index.
+    """
+
+    name = 'modindex'
+    localname = _('JavaScript Module Index')
+    shortname = _('modules')
+
+    def generate(self, docnames: Iterable[str] = None
+                 ) -> Tuple[List[Tuple[str, List[IndexEntry]]], bool]:
+        content = {}  # type: Dict[str, List[IndexEntry]]
+
+        # modindex_common_prefix?
+        # synopsis?
+        # platforms?
+        # deprecated?
+        # collapsed?
+        # submodule?
+        for modname, docname in sorted(self.domain.modules.items()):
+            if docnames and docname not in docnames:
+                continue
+
+            key = modname[0].lower()
+            index = IndexEntry(modname, '', docname, 'module-' + modname, '', '', '')
+            content.setdefault(key, []).append(index)
+
+        return sorted(content.items()), False
+
+
 class JSXRefRole(XRefRole):
     def process_link(self, env: BuildEnvironment, refnode: Element,
                      has_explicit_title: bool, title: str, target: str) -> Tuple[str, str]:
@@ -347,6 +377,9 @@ class JavaScriptDomain(Domain):
         'attr':  JSXRefRole(),
         'mod':   JSXRefRole(),
     }
+    indices = [
+        JavaScriptModuleIndex,
+    ]
     initial_data = {
         'objects': {},  # fullname -> docname, node_id, objtype
         'modules': {},  # modname  -> docname, node_id
