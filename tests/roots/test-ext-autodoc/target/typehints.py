@@ -22,3 +22,11 @@ class Math:
 def complex_func(arg1, arg2, arg3=None, *args, **kwargs):
     # type: (str, List[int], Tuple[int, Union[str, Unknown]], *str, **str) -> None
     pass
+
+
+def type_comment_for_each_args(arg1,  # type: int
+                               arg2,  # type: str
+                               *args,  # type: Any
+                               kwarg=None):  # type: int
+    # type: (...) -> int
+    pass
