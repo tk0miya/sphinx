@@ -2,6 +2,8 @@ import argparse
 import sys
 from bump_version import parse_version, stringify_version
 
+import requests
+
 
 def parse_options(argv):
     parser = argparse.ArgumentParser()
@@ -13,18 +15,39 @@ def parse_options(argv):
     return options
 
 
+def release_branch_for(version):
+    if version[2] == 0:  # ex. 3.0.0, 3.1.0
+        return "%d.x" % version[0]  # ex. 3.x
+    else:
+        return "%d.%d.x" % (version[0], version[1])  # ex. 3.0.x
+
+
+def next_minor_version(version):
+    pass
+
+
+def get_branch_status(name):
+    r = requests.get('https://api.travis-ci.org/repos/sphnx-doc/sphinx/branches/' + name)
+    r.raise_for_status()
+    return r.json()['branch']['state']
+
+
 def main():
     options = parse_options(sys.argv[1:])
 
-    context = {'version': stringify_version(options.version)}
-    if options.beta and options.version[4] == 1:  # ex. 2.0.0b1
-        context['first_beta'] = True
-        context['current_branch'] = 'master'
-        context['release_branch'] = '%d.0'
-    else:
-        context['current_branch'] = '%d.0' % options.version[0]
-        context['release_branch'] = context['current_branch']
+    branch = release_branch_for(options.version),
+    context = {
+        'release_branch': branch,
+        'version': stringify_version(options.version)
+    }
 
+    if context['version'].endswith('b1'):
+        context['first_beta'] = True
+    if context['version'].endswith('.0.0'):
+        context['major_release'] = True
+
+    status = get_branch_status(branch)
+    assert status == "passed", "Branch %s is not green: %s" % (branch, status)
 
 """
 version = X.Y.Z | X.Y.0b1
@@ -48,7 +71,6 @@ next_major_version = X.Y.0b0
 {% endif -%}
 * ``python utils/bump_version.py {{ version }}``
 * Check diff by ``git diff``
-* Edit CHANGES if empty section exists
 * ``git commit -am 'Bump to {{ version_human }}'``
 * ``make clean``
 * ``python setup.py release bdist_wheel sdist``
