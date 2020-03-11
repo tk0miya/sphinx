@@ -284,6 +284,22 @@ The following directives are provided for module and class contents:
 
       .. versionadded:: 2.4
 
+.. rst:directive:: .. py:property:: name
+
+   Describes an object property.
+
+   .. versionadded:: 3.5
+
+   .. rubric:: options
+
+   .. rst:directive:option:: abstractmethod
+      :type: no value
+
+      Indicate the property is abstract.
+
+   .. rst:directive:option:: type: type of the property
+      :type: text
+
 .. rst:directive:: .. py:method:: name(parameters)
 
    Describes an object method.  The parameters should not include the ``self``
@@ -327,6 +343,10 @@ The following directives are provided for module and class contents:
       Indicate the method is a property.
 
       .. versionadded:: 2.1
+
+      .. deprecated:: 3.5
+
+         Use :rst:dir:`py:property` instead.
 
    .. rst:directive:option:: staticmethod
       :type: no value
@@ -543,6 +563,12 @@ a matching identifier is found:
 .. rst:role:: py:attr
 
    Reference a data attribute of an object.
+
+   .. note:: The role is also able to refer to property.
+
+.. rst:role:: py:prop
+
+   Reference a property of an object.
 
 .. rst:role:: py:exc
 

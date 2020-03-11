@@ -18,11 +18,11 @@ module
 
     * Link to :py:meth:`module_a.submodule.ModTopLevel.mod_child_1`
 
-.. py:method:: ModTopLevel.prop
-   :property:
+.. py:property:: ModTopLevel.prop
 
    * Link to :py:attr:`prop attribute <.prop>`
    * Link to :py:meth:`prop method <.prop>`
+   * Link to :py:prop:`prop property <.prop>`
 
 .. py:currentmodule:: None
 
