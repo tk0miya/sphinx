@@ -776,7 +776,7 @@ def setup(app: Sphinx) -> Dict[str, Any]:
     app.add_directive('autosummary', Autosummary)
     app.add_role('autolink', AutoLink())
     app.connect('builder-inited', process_generate_options)
-    app.add_config_value('autosummary_generate', [], True, [bool])
+    app.add_config_value('autosummary_generate', True, True, [bool])
     app.add_config_value('autosummary_generate_overwrite', True, False)
     app.add_config_value('autosummary_mock_imports',
                          lambda config: config.autodoc_mock_imports, 'env')
