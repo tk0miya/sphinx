@@ -181,7 +181,7 @@ def test_resolve_xref_for_properties(app, status, warning):
             'prop</span> <span class="pre">method</span></code></a>' in content)
     assert ('Link to <a class="reference internal" href="#module_a.submodule.ModTopLevel.prop"'
             ' title="module_a.submodule.ModTopLevel.prop">'
-            '<code class="xref py py-prop docutils literal notranslate"><span class="pre">'
+            '<code class="xref py py-prop py-attr docutils literal notranslate"><span class="pre">'
             'prop</span> <span class="pre">property</span></code></a>' in content)
 
 

@@ -18,7 +18,7 @@ from inspect import Parameter
 from typing import Any, Dict, Iterable, Iterator, List, NamedTuple, Tuple, cast
 
 from docutils import nodes
-from docutils.nodes import Element, Node
+from docutils.nodes import Element, Node, system_message
 from docutils.parsers.rst import directives
 
 from sphinx import addnodes
@@ -1092,6 +1092,23 @@ class PyXRefRole(XRefRole):
         return title, target
 
 
+class PyPropXRefRole(PyXRefRole):
+    """A special xref role class for :py:prop: role.
+
+    It adds a "py-attr" style to the role for backward compatibility.
+
+    Note: RemovedInSphinx50Warning
+    """
+
+    def create_non_xref_node(self) -> Tuple[List[Node], List[system_message]]:
+        self.classes.append('py-attr')
+        return super().create_non_xref_node()
+
+    def create_xref_node(self) -> Tuple[List[Node], List[system_message]]:
+        self.classes.append('py-attr')
+        return super().create_xref_node()
+
+
 def filter_meta_fields(app: Sphinx, domain: str, objtype: str, content: Element) -> None:
     """Filter ``:meta:`` field from its docstring."""
     if domain != 'py':
@@ -1219,7 +1236,7 @@ class PythonDomain(Domain):
         'class': PyXRefRole(),
         'const': PyXRefRole(),
         'attr':  PyXRefRole(),
-        'prop':  PyXRefRole(),
+        'prop':  PyPropXRefRole(),
         'meth':  PyXRefRole(fix_parens=True),
         'mod':   PyXRefRole(),
         'obj':   PyXRefRole(),
