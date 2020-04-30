@@ -11,7 +11,7 @@
 import traceback
 from importlib import import_module
 from types import MethodType
-from typing import Any, Callable, Dict, Iterator, List, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 from docutils import nodes
 from docutils.io import Input
@@ -284,7 +284,7 @@ class SphinxComponentRegistry:
             parser.set_application(app)
         return parser
 
-    def get_source_input(self, filetype: str) -> "Type[Input]":
+    def get_source_input(self, filetype: str) -> Optional["Type[Input]"]:
         try:
             return self.source_inputs[filetype]
         except KeyError:

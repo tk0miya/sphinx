@@ -22,12 +22,11 @@ class BooleanParser(Parser):
     """
 
     def parse_compare(self) -> Node:
-        node = None  # type: Node
         token = self.stream.current
         if token.type == 'name':
             if token.value in ('true', 'false', 'True', 'False'):
                 node = nodes.Const(token.value in ('true', 'True'),
-                                   lineno=token.lineno)
+                                   lineno=token.lineno)  # type: Node
             elif token.value in ('none', 'None'):
                 node = nodes.Const(None, lineno=token.lineno)
             else:

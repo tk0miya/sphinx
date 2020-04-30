@@ -494,8 +494,7 @@ class Sphinx:
            This can be used to implement config values whose default depends on
            other values.
         """
-        logger.debug('[app] adding config value: %r',
-                     (name, default, rebuild) + ((types,) if types else ()))
+        logger.debug('[app] adding config value: %r', (name, default, rebuild, types))
         if rebuild in (False, True):
             rebuild = 'env' if rebuild else ''
         self.config.add(name, default, rebuild, types)
