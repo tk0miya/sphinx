@@ -16,16 +16,13 @@ import sys
 from distutils.cmd import Command
 from distutils.errors import DistutilsOptionError, DistutilsExecError
 from io import StringIO
+from typing import Any, Dict
 
 from sphinx.application import Sphinx
 from sphinx.cmd.build import handle_exception
 from sphinx.util.console import nocolor, color_terminal
 from sphinx.util.docutils import docutils_namespace, patch_docutils
 from sphinx.util.osutil import abspath
-
-if False:
-    # For type annotation
-    from typing import Any, Dict  # NOQA
 
 
 class BuildDoc(Command):
@@ -90,8 +87,7 @@ class BuildDoc(Command):
     boolean_options = ['fresh-env', 'all-files', 'warning-is-error',
                        'link-index', 'nitpicky']
 
-    def initialize_options(self):
-        # type: () -> None
+    def initialize_options(self) -> None:
         self.fresh_env = self.all_files = False
         self.pdb = False
         self.source_dir = self.build_dir = None  # type: str
@@ -109,8 +105,7 @@ class BuildDoc(Command):
         self.nitpicky = False
         self.keep_going = False
 
-    def _guess_source_dir(self):
-        # type: () -> str
+    def _guess_source_dir(self) -> str:
         for guess in ('doc', 'docs'):
             if not os.path.isdir(guess):
                 continue
@@ -122,8 +117,7 @@ class BuildDoc(Command):
     # Overriding distutils' Command._ensure_stringlike which doesn't support
     # unicode, causing finalize_options to fail if invoked again. Workaround
     # for https://bugs.python.org/issue19570
-    def _ensure_stringlike(self, option, what, default=None):
-        # type: (str, str, Any) -> Any
+    def _ensure_stringlike(self, option: str, what: str, default: Any = None) -> Any:
         val = getattr(self, option)
         if val is None:
             setattr(self, option, default)
@@ -133,8 +127,7 @@ class BuildDoc(Command):
                                        % (option, what, val))
         return val
 
-    def finalize_options(self):
-        # type: () -> None
+    def finalize_options(self) -> None:
         self.ensure_string_list('builder')
 
         if self.source_dir is None:
@@ -156,8 +149,7 @@ class BuildDoc(Command):
             (builder, os.path.join(self.build_dir, builder))
             for builder in self.builder]
 
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         if not color_terminal():
             nocolor()
         if not self.verbose:  # type: ignore
