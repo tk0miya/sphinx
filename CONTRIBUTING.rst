@@ -1,0 +1,2 @@
+New CONTRIBUTING.rst!
+=====================
