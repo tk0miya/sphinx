@@ -16,6 +16,9 @@ Features added
 Bugs fixed
 ----------
 
+* #8415: autodoc: a TypeVar imported from other module is not resolved (in
+  Python 3.7 or above)
+
 Testing
 --------
 
