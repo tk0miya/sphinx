@@ -13,6 +13,9 @@ Deprecated
 Features added
 --------------
 
+* #7199: A new node, ``sphinx.addnodes.pending_xref_condition`` has been added.
+  It can be used to choose appropriate content of the reference by conditions.
+
 Bugs fixed
 ----------
 
