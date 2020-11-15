@@ -13,6 +13,8 @@ Deprecated
 Features added
 --------------
 
+* #7199: py domain: Add :confval:`python_use_unqualified_type_names` to suppress
+  the module name of the python reference if it can be resolved (experimental)
 * #7199: A new node, ``sphinx.addnodes.pending_xref_condition`` has been added.
   It can be used to choose appropriate content of the reference by conditions.
 

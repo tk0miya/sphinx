@@ -2632,6 +2632,17 @@ Options for the C++ domain
 
    .. versionadded:: 1.5
 
+Options for the Python domain
+-----------------------------
+
+.. confval:: python_use_unqualified_type_names
+
+   If true, suppress the module name of the python reference if it can be
+   resolved.  The default is ``False``.
+
+   .. versionadded:: 3.4
+
+   .. note:: This configuration is still in experimental
 
 Example of configuration file
 =============================
