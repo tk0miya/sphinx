@@ -314,6 +314,7 @@ def generate(d: Dict, overwrite: bool = True, silent: bool = False, templatedir:
     if 'mastertocmaxdepth' not in d:
         d['mastertocmaxdepth'] = 2
 
+    d['root'] = d['master']
     d['now'] = time.asctime()
     d['project_underline'] = column_width(d['project']) * '='
     d.setdefault('extensions', [])
@@ -358,7 +359,7 @@ def generate(d: Dict, overwrite: bool = True, silent: bool = False, templatedir:
     write_file(path.join(srcdir, 'conf.py'), template.render_string(conf_text, d))
 
     masterfile = path.join(srcdir, d['master'] + d['suffix'])
-    write_file(masterfile, template.render('quickstart/master_doc.rst_t', d))
+    write_file(masterfile, template.render('quickstart/root_doc.rst_t', d))
 
     if d.get('make_mode') is True:
         makefile_template = 'quickstart/Makefile.new_t'

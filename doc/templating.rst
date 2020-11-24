@@ -299,9 +299,13 @@ in the future.
 
    The path to the HTML logo image in the static path, or ``''``.
 
-.. data:: master_doc
+.. data:: root_doc
 
-   The value of :confval:`master_doc`, for usage with :func:`pathto`.
+   The value of :confval:`root_doc`, for usage with :func:`pathto`.
+
+   .. versionchanged:: 4.0
+
+      Renamed from ``master_doc``.
 
 .. data:: pagename
 
