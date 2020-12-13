@@ -2101,8 +2101,64 @@ class SlotsMixin(DataDocumenterMixinBase):
             return super().get_doc(encoding, ignore)  # type: ignore
 
 
+class UninitializedInstanceAttributeMixin(DataDocumenterMixinBase):
+    """
+    Mixin for AttributeDocumenter to provide the feature for supporting uninitialized
+    instance attributes.
+    """
+
+    def is_uninitialized_instance_attribute(self) -> bool:
+        """Check the subject is an attribute defined in __init__()."""
+        # An instance variable defined inside __init__().
+        try:
+            analyzer = ModuleAnalyzer.for_module(self.modname)
+            attr_docs = analyzer.find_attr_docs()
+            if self.objpath:
+                key = ('.'.join(self.objpath[:-1]), self.objpath[-1])
+                if key in attr_docs:
+                    return True
+        except PycodeError:
+            pass
+
+        return False
+
+    def import_object(self, raiseerror: bool = False) -> bool:
+        try:
+            return super().import_object(raiseerror=True)  # type: ignore
+        except ImportError as exc:
+            if self.is_uninitialized_instance_attribute():
+                try:
+                    self.object = UNINITIALIZED_ATTR
+                    ret = import_object(self.modname, self.objpath[:-1], 'class',
+                                        attrgetter=self.get_attr,  # type: ignore
+                                        warningiserror=self.config.autodoc_warningiserror)
+                    self.parent = ret[3]
+                    return True
+                except ImportError:
+                    pass
+
+            if raiseerror:
+                raise
+            else:
+                logger.warning(exc.args[0], type='autodoc', subtype='import_object')
+                self.env.note_reread()
+                return False
+
+    def should_suppress_value_header(self) -> bool:
+        return (self.object == UNINITIALIZED_ATTR or
+                super().should_suppress_value_header())
+
+    def add_content(self, more_content: Optional[StringList], no_docstring: bool = False
+                    ) -> None:
+        if self.object is UNINITIALIZED_ATTR:
+            self.analyzer = None
+
+        super().add_content(more_content, no_docstring=no_docstring)  # type: ignore
+
+
 class AttributeDocumenter(GenericAliasMixin, NewTypeMixin, SlotsMixin,  # type: ignore
-                          TypeVarMixin, DocstringStripSignatureMixin, ClassLevelDocumenter):
+                          TypeVarMixin, UninitializedInstanceAttributeMixin,
+                          DocstringStripSignatureMixin, ClassLevelDocumenter):
     """
     Specialized Documenter subclass for attributes.
     """
@@ -2151,19 +2207,6 @@ class AttributeDocumenter(GenericAliasMixin, NewTypeMixin, SlotsMixin,  # type: 
                     return True
             except ImportError:
                 pass
-
-        # An instance variable defined inside __init__().
-        try:
-            analyzer = ModuleAnalyzer.for_module(self.modname)
-            attr_docs = analyzer.find_attr_docs()
-            if self.objpath:
-                key = ('.'.join(self.objpath[:-1]), self.objpath[-1])
-                if key in attr_docs:
-                    return True
-
-            return False
-        except PycodeError:
-            pass
 
         return False
 
@@ -2217,7 +2260,9 @@ class AttributeDocumenter(GenericAliasMixin, NewTypeMixin, SlotsMixin,  # type: 
             # data descriptors do not have useful values
             if not self._datadescriptor:
                 try:
-                    if self.object is INSTANCEATTR or self.options.no_value:
+                    if (self.object is INSTANCEATTR or
+                            self.options.no_value or
+                            self.should_suppress_value_header()):
                         pass
                     else:
                         objrepr = object_description(self.object)
