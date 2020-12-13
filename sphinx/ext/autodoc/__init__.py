@@ -2107,35 +2107,44 @@ class UninitializedInstanceAttributeMixin(DataDocumenterMixinBase):
     instance attributes.
     """
 
-    def is_uninitialized_instance_attribute(self) -> bool:
-        """Check the subject is an attribute defined in __init__()."""
-        # An instance variable defined inside __init__().
+    def get_attribute_comment(self, parent: Any) -> Optional[List[str]]:
         try:
             analyzer = ModuleAnalyzer.for_module(self.modname)
-            attr_docs = analyzer.find_attr_docs()
-            if self.objpath:
-                key = ('.'.join(self.objpath[:-1]), self.objpath[-1])
-                if key in attr_docs:
-                    return True
+            analyzer.analyze()
+
+            qualname = safe_getattr(parent, '__qualname__', None)
+            if qualname and self.objpath:
+                key = (qualname, self.objpath[-1])
+                if key in analyzer.attr_docs:
+                    return list(analyzer.attr_docs[key])
         except PycodeError:
             pass
 
-        return False
+        return None
+
+    def is_uninitialized_instance_attribute(self, parent: Any) -> bool:
+        """Check the subject is an attribute defined in __init__()."""
+        # An instance variable defined inside __init__().
+        if self.get_attribute_comment(parent):
+            return True
+        else:
+            return False
 
     def import_object(self, raiseerror: bool = False) -> bool:
         try:
             return super().import_object(raiseerror=True)  # type: ignore
         except ImportError as exc:
-            if self.is_uninitialized_instance_attribute():
-                try:
+            try:
+                ret = import_object(self.modname, self.objpath[:-1], 'class',
+                                    attrgetter=self.get_attr,  # type: ignore
+                                    warningiserror=self.config.autodoc_warningiserror)
+                parent = ret[3]
+                if self.is_uninitialized_instance_attribute(parent):
                     self.object = UNINITIALIZED_ATTR
-                    ret = import_object(self.modname, self.objpath[:-1], 'class',
-                                        attrgetter=self.get_attr,  # type: ignore
-                                        warningiserror=self.config.autodoc_warningiserror)
-                    self.parent = ret[3]
+                    self.parent = parent
                     return True
-                except ImportError:
-                    pass
+            except ImportError:
+                pass
 
             if raiseerror:
                 raise
@@ -2147,6 +2156,15 @@ class UninitializedInstanceAttributeMixin(DataDocumenterMixinBase):
     def should_suppress_value_header(self) -> bool:
         return (self.object == UNINITIALIZED_ATTR or
                 super().should_suppress_value_header())
+
+    def get_doc(self, encoding: str = None, ignore: int = None) -> List[List[str]]:
+        if self.object is UNINITIALIZED_ATTR:
+            comment = self.get_attribute_comment(self.parent)
+            print(self.objpath, comment)
+            if comment:
+                return [comment]
+
+        return super().get_doc(encoding, ignore)  # type: ignore
 
     def add_content(self, more_content: Optional[StringList], no_docstring: bool = False
                     ) -> None:
