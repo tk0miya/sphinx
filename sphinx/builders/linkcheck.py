@@ -109,9 +109,7 @@ class CheckExternalLinksBuilder(Builder):
                                for x in self.app.config.linkcheck_anchors_ignore]
         self.auth = [(re.compile(pattern), auth_info) for pattern, auth_info
                      in self.app.config.linkcheck_auth]
-        self.good = set()       # type: Set[str]
-        self.broken = {}        # type: Dict[str, str]
-        self.redirected = {}    # type: Dict[str, Tuple[str, int]]
+        self.broken = False
         # set a timeout for non-responding servers
         socket.setdefaulttimeout(5.0)
         # create output file
@@ -257,14 +255,8 @@ class CheckExternalLinksBuilder(Builder):
                             if rex.match(uri):
                                 return 'ignored', '', 0
                         else:
-                            self.broken[uri] = ''
+                            self.broken = True
                             return 'broken', '', 0
-            elif uri in self.good:
-                return 'working', 'old', 0
-            elif uri in self.broken:
-                return 'broken', self.broken[uri], 0
-            elif uri in self.redirected:
-                return 'redirected', self.redirected[uri][0], self.redirected[uri][1]
             for rex in self.to_ignore:
                 if rex.match(uri):
                     return 'ignored', '', 0
@@ -275,12 +267,8 @@ class CheckExternalLinksBuilder(Builder):
                 if status != "broken":
                     break
 
-            if status == "working":
-                self.good.add(uri)
-            elif status == "broken":
-                self.broken[uri] = info
-            elif status == "redirected":
-                self.redirected[uri] = (info, code)
+            if status == "broken":
+                self.broken = True
 
             return (status, info, code)
 
