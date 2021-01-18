@@ -54,6 +54,7 @@ Bugs fixed
   + or ^) are used as keystrokes
 * #8629: html: A type warning for html_use_opensearch is shown twice
 * #8665: html theme: Could not override globaltoc_maxdepth in theme.conf
+* #4304: linkcheck: Do not check the availability of the same URL repeatedly
 * #8094: texinfo: image files on the different directory with document are not
   copied
 * #8671: :confval:`highlight_options` is not working

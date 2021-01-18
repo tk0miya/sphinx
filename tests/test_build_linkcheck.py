@@ -598,7 +598,7 @@ def test_priorityqueue_items_are_comparable(app):
             'lineno': 0,
             'status': 'working',
             'code': 0,
-            'uri': 'http://localhost:7777/',
+            'uri': 'http://localhost:7777/image.png',
             'info': '',
         },
         {
@@ -606,7 +606,7 @@ def test_priorityqueue_items_are_comparable(app):
             'lineno': 4,
             'status': 'working',
             'code': 0,
-            'uri': 'http://localhost:7777/',
+            'uri': 'http://localhost:7777/weblate',
             'info': '',
         }
     ]
