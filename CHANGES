@@ -38,6 +38,10 @@ Features added
   info-field-list
 * #8514: autodoc: Default values of overloaded functions are taken from actual
   implementation if they're ellipsis
+* #759: autodoc: Add a new extension ``sphinx.ext.autodoc.preserve_defaults``.
+  It preserves the default argument values of function signatures in source code
+  and keep them not evaluated for readability.  This is an experimental
+  extension and it will be integrated into autodoc core in Sphinx-4.0
 * #8619: html: kbd role generates customizable HTML tags for compound keys
 * #8634: html: Allow to change the order of JS/CSS via ``priority`` parameter
   for :meth:`Sphinx.add_js_file()` and :meth:`Sphinx.add_css_file()`
