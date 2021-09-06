@@ -17,6 +17,7 @@ Features added
 * #9479: autodoc: Emit a warning if target is a mocked object
 * #9447: html theme: Expose the version of Sphinx in the form of tuple as a
   template variable ``sphinx_version_tuple``
+* #9592: linkcheck: do not retry on SSL errors
 * #9445: py domain: ``:py:property:`` directive supports ``:classmethod:``
   option to describe the class property
 * #9524: test: SphinxTestApp can take ``builddir`` as an argument

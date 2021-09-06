@@ -26,7 +26,7 @@ from urllib.parse import unquote, urlparse, urlunparse
 from docutils import nodes
 from docutils.nodes import Element
 from requests import Response
-from requests.exceptions import ConnectionError, HTTPError, TooManyRedirects
+from requests.exceptions import ConnectionError, HTTPError, SSLError, TooManyRedirects
 
 from sphinx.application import Sphinx
 from sphinx.builders.dummy import DummyBuilder
@@ -486,6 +486,8 @@ class HyperlinkAvailabilityCheckWorker(Thread):
                     return 'ignored', str(err), 0
                 else:
                     return 'broken', str(err), 0
+            except SSLError as err:
+                return 'broken', str(err), -1
             except Exception as err:
                 return 'broken', str(err), 0
             else:
@@ -542,7 +544,9 @@ class HyperlinkAvailabilityCheckWorker(Thread):
             # need to actually check the URI
             for _ in range(self.config.linkcheck_retries):
                 status, info, code = check_uri()
-                if status != "broken":
+                if status == "broken" and code >= 0:
+                    continue
+                else:
                     break
 
             if status == "working":
